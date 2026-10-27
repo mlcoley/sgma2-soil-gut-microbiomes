@@ -1,0 +1,9 @@
+# Environment for MicrobeCensus (Python 2.7).
+# Create with: conda env create -f pipeline/00_setup/environment_microbecensus2.yml
+name: microbecensus2
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=2.7
+  - microbecensus

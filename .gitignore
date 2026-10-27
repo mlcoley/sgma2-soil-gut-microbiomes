@@ -1,0 +1,27 @@
+# data and outputs
+data/
+output/
+logs/
+*.fq
+*.fq.gz
+*.fastq
+*.fastq.gz
+*.mmi
+*.bam
+*.sam
+*.tsv.gz
+*.docx
+
+# cluster run artefacts
+*.out
+*.err
+done/
+todo/
+prog/
+done_*/
+
+# local
+.DS_Store
+.Rhistory
+.RData
+.Rproj.user/
