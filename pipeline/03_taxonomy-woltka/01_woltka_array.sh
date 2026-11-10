@@ -92,7 +92,7 @@ python "$COVSCRIPT" "$LENGTHMAP" \
     "${WOLDIR}/${samplename}_coverages/${samplename}.cov" \
     "${WOLDIR}/${samplename}_processed.cov"
 
-# ---- 4) drop the (huge) SAM ----
+# ---- 4) drop the huge SAM ----
 rm -f "$SAM"
 
 touch "${DONE_DIR}/${samplename}.done"

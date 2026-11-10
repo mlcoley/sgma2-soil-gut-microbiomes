@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Merge per-chunk AMRFinderPlus tables.
 
-Writes a native concatenated table and a harmonised long table keyed on gene_id with
+Writes a native concatenated table and a harmonized long table keyed on gene_id with
 a `tool` column, so another AMR tool can be appended with the same schema. Columns
 are mapped by header name, not position.
 

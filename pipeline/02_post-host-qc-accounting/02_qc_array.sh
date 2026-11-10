@@ -15,7 +15,7 @@
 #SBATCH --mail-user=YOUR_EMAIL
 # Per-sample read statistics (seqkit) and FastQC on host-filtered reads.
 # One array task per row of step1_samplesheet.tsv; set --array=1-N where N is the
-# number of rows. Tasks past the end exit cleanly.
+# number of rows
 
 source "${SGMA2_CONFIG:-config/paths.sh}"
 

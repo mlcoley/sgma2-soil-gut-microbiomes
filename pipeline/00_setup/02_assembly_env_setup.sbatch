@@ -12,7 +12,7 @@
 #SBATCH -A YOUR_ACCOUNT
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
-# Builds assembly conda env (MEGAHIT, metaSPAdes, QUAST, seqkit). Run once.
+# Builds assembly conda env (MEGAHIT, metaSPAdes, QUAST, seqkit). Run this once.
 
 set -euo pipefail
 set +u

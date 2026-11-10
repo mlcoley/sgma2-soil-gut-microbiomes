@@ -12,8 +12,8 @@
 #SBATCH -A YOUR_ACCOUNT
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
-# Builds the biobakery conda env (MetaPhlAn 4.1.2) and checks the MetaPhlAn index
-# under $SGMA2_DB_DIR/metaphlan. Run once.
+# Builds a biobakery conda env (MetaPhlAn 4.1.2) and checks the MetaPhlAn index
+# under $SGMA2_DB_DIR/metaphlan. Run once
 
 source "${SGMA2_CONFIG:-config/paths.sh}"
 

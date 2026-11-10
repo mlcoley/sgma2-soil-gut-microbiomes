@@ -1,12 +1,6 @@
 #!/usr/bin/env Rscript
 # Beta-diversity structure: PERMANOVA of compartment and of household within soil,
 # multivariate dispersion, and the within-soil household distance figure.
-#
-# Distance: Bray-Curtis on relative abundance (primary) and Aitchison (Euclidean on
-# CLR of counts + 1). Every PERMANOVA ships with a betadisper/permutest companion,
-# because PERMANOVA cannot separate a location shift from a spread difference. The
-# compartment test is repeated with soil collapsed to one household-mean profile,
-# since the cohort has 3 soils but 1 stool and 1 dung per household.
 # Usage: Rscript analysis/03_diversity.R   (from the repository root)
 
 suppressPackageStartupMessages({
@@ -31,7 +25,7 @@ dist_ait  <- function(M) {
 }
 DISTS <- list("Bray-Curtis" = dist_bray, "Aitchison (CLR)" = dist_ait)
 
-# KO and ARG span all analyzed samples. KO is not contamination-filtered.
+# KO and ARG span all analyzed samples
 ko  <- get_layer("ko_all", key)
 GATING <- load_gating()
 arg <- gate_layer(get_layer("arg", key), GATING)
@@ -130,7 +124,7 @@ save_tab(sp %>% group_by(layer, pair) %>%
          "T3f_soil_household_distances.tsv")
 sp$layer <- factor(sp$layer, levels = names(LAY))
 
-# Half-violins (density mirrored about each group axis), each scaled to the same
+# Half-violins scaled to the same
 # maximum width, so the 117 same-household and 6,669 different-household pairs are
 # comparable in shape but not in number.
 HALF_W_7B <- 0.42
@@ -161,7 +155,7 @@ f7b <- ggplot(sp, aes(dist, as.integer(pair))) +
 save_fig(f7b, "F7b_soil_household_effect.png", width = 9.5, height = 3.4)
 
 # ===========================================================================
-# Multivariate dispersion (betadisper) companion to the compartment PERMANOVA
+# Multivariate dispersion (betadisper) for compartment PERMANOVA
 # ===========================================================================
 t3b <- list()
 for (nm in names(LAY)) for (dn in names(DISTS)) {

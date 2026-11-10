@@ -61,16 +61,16 @@ echo "    pooled proteins: $npool"
 echo "[3/5] seqkit grep rep proteins ... $(date +'%H:%M:%S')"
 seqkit grep -j "$THREADS" -f "$IDS" "$POOL" -o "$OUT"
 
-# 4) verify count matches the catalog
+# 4) verify count matches catalog
 echo "[4/5] verifying count ... $(date +'%H:%M:%S')"
 nout=$(grep -c '^>' "$OUT" || true)
 echo "    rep proteins written: $nout   (expected $nids)"
 [ "$nout" = "$nids" ] || { echo "ERROR: count mismatch ($nout != $nids) — some reps have no protein match"; exit 1; }
 
-# 5) split into fixed-size chunks for the eggNOG array
+# 5) split into fixed-size chunks for eggNOG array
 echo "[5/5] splitting into chunks ... $(date +'%H:%M:%S')"
 seqkit split2 -s 250000 -O "$CHUNKS" -j "$THREADS" "$OUT"
 
-# tidy the big intermediate pool (rep proteins + ids are what we keep)
+# tidy the big intermediate pool. rep proteins + ids are kept
 rm -f "$POOL"
 echo "done $(date +'%F %H:%M:%S')  ->  $OUT"

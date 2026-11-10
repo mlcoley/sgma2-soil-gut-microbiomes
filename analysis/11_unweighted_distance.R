@@ -1,11 +1,7 @@
 #!/usr/bin/env Rscript
 # Compartment separation on presence-only versus abundance-weighted distances.
-# Bray-Curtis (on relative abundance) is compared with Jaccard and Sorensen
-# (presence only), under both presence rules (count >= 1 and covered fraction >= 0.5),
-# for the KO and ARG-family layers. A presence/absence distance weights every feature
-# equally and is sensitive to richness, which rises with sequencing depth, so depth and
-# richness are reported beside the PERMANOVA. Bray-Curtis under the count rule must
-# reproduce the R2 in T3 (asserted).
+# Bray-Curtis (on relative abundance) is compared with Jaccard and Sorensen, under both presence def
+# for the KO and ARG-family layers.
 # Outputs: T37a (PERMANOVA), T37b (dispersion), T37c (Procrustes agreement between the
 # Bray-Curtis and presence-only ordinations), T37d (depth and richness), T37e (depth by compartment, Kruskal-Wallis), and Figure 1.
 # Inputs: feature_tables/{ko,arg}_abundance_wide.tsv.gz and the *_cf50 versions.
@@ -29,7 +25,7 @@ GATING <- load_gating()
 ## ---- distances -----------------------------------------------------------
 # Jaccard and Sorensen are monotone transforms of each other (J = S / (2 - S)); both
 # are computed because PERMANOVA partitions the distance values and returns slightly
-# different R2. Jaccard is the one drawn.
+# different R2. Jaccard is in the figure.
 dist_bray  <- function(M) vegdist(tss(M), method = "bray")
 dist_jacc  <- function(M) vegdist(M, method = "jaccard", binary = TRUE)
 dist_soren <- function(M) vegdist(M, method = "bray",    binary = TRUE)
@@ -43,8 +39,8 @@ pcoa <- function(d, k = 2) {
   list(pts = cm$points, var = 100 * cm$eig[seq_len(k)] / sum(pos))
 }
 
-## ---- matrices: 2 layers x 2 presence rules -------------------------------
-# The cf50 tables are not registered in LAYERS, so they are loaded and aligned here.
+## ---- matrices: 2 layers x 2 presence defs -------------------------------
+# The cf50 tables are not registered in LAYERS
 align_to_key <- function(M) {
   common <- intersect(rownames(M), key$sample_id)
   M <- M[common, , drop = FALSE]
@@ -67,7 +63,7 @@ MATS <- list(
   list(layer = "ARG (resistome)", rule = "count >= 1",              M = arg_std),
   list(layer = "ARG (resistome)", rule = "covered_fraction >= 0.5", M = arg_cf))
 
-# Both presence rules must cover the same samples.
+
 for (l in c("KO (function)", "ARG (resistome)")) {
   s <- lapply(Filter(function(x) x$layer == l, MATS), function(x) sort(rownames(x$M)))
   if (!identical(s[[1]], s[[2]]))
@@ -93,8 +89,8 @@ diag_rows <- bind_rows(lapply(MATS, function(m) {
 }))
 save_tab(diag_rows, "T37d_depth_richness_diagnostic.tsv")
 
-# Analysed samples only: load_key() still carries P181 (dung, 25,052 reads), which the
-# feature tables lack, so restrict to samples present in the matrices above.
+# Analysed samples only: load_key() still carries P181 (dung, 25,052 reads), 
+# which was excluded due to low deptj, so restrict to samples present in the matrices above.
 key_dep <- key[key$sample_id %in% rownames(ko_std), ]
 dep <- key_dep %>% group_by(compartment) %>%
   summarise(n = n(), median_depth = median(posthost_reads),
@@ -136,8 +132,7 @@ for (i in seq_along(MATS)) {
       R2 = round(a$R2[1], 4), R2_null_expected = round(r2_null, 4),
       R2_excess = round(a$R2[1] - r2_null, 4),
       F = round(a$F[1], 2), p = a$`Pr(>F)`[1])
-    # dispersion companion: a significant result means R2 mixes a centroid shift with
-    # a spread difference
+    
     bd <- vegan::betadisper(d, grp)
     pt <- vegan::permutest(bd, permutations = N_PERM)
     disp_rows[[length(disp_rows) + 1]] <- data.frame(
@@ -150,7 +145,7 @@ T37a <- bind_rows(perm_rows); T37b <- bind_rows(disp_rows)
 save_tab(T37a, "T37a_unweighted_permanova.tsv")
 save_tab(T37b, "T37b_unweighted_dispersion.tsv")
 
-# Control: Bray-Curtis under the count rule must reproduce the R2 from 03_diversity.R.
+# Control: Bray-Curtis under the count rule should reproduce R2 from 03_diversity.R.
 chk <- T37a %>% filter(distance == "Bray-Curtis (abundance)", presence_rule == "count >= 1")
 pub <- c("KO (function)" = 0.856, "ARG (resistome)" = 0.681)
 for (i in seq_len(nrow(chk))) {
@@ -175,9 +170,7 @@ proc_rows <- bind_rows(lapply(seq_along(MATS), function(i) {
 }))
 save_tab(proc_rows, "T37c_unweighted_procrustes.tsv")
 
-## ---- Figure 1: Bray-Curtis and Jaccard ordinations (count >= 1 rule) ----------
-# Four independent plots stitched by patchwork, so each panel carries its own
-# percent-variance axis labels. The PERMANOVA annotation is read from T37a.
+## ---- Figure 1: Bray-Curtis and Jaccard ordinations (count >= 1 def) ----------
 panel_plot <- function(i, dn) {
   m  <- MATS[[i]]
   kk <- key[match(rownames(m$M), key$sample_id), ]
@@ -187,14 +180,14 @@ panel_plot <- function(i, dn) {
   ggplot(df, aes(Axis1, Axis2, color = compartment)) +
     geom_point(size = 1.5, alpha = .75) +
     stat_ellipse(level = .95, linewidth = .4, show.legend = FALSE) +
-    annotate("text", x = Inf, y = Inf, hjust = 1.04, vjust = 1.5, size = 3, color = "grey25",
+    annotate("text", x = Inf, y = Inf, hjust = 1.04, vjust = 1.5, size = 3.5, color = "grey25",
              label = sprintf("R\u00b2 = %.3f, %s", st$R2[1], fmt_p(st$p[1]))) +
     scale_color_manual(values = COMP_COLS, name = NULL, limits = COMP_LEVELS,
                        labels = compartment_display) +
-    scale_y_continuous(expand = expansion(mult = c(.05, .15))) +   # headroom for the annotation
+    scale_y_continuous(expand = expansion(mult = c(.05, .15))) +  
     # layer_display() maps the stored key to the reader-facing name
     labs(title = sprintf("%s \u00b7 %s", layer_display(m$layer, wrap = FALSE),
-                         sub(" \\(.*\\)$", "", dn)),   # "Jaccard (presence)" -> "Jaccard"
+                         sub(" \\(.*\\)$", "", dn)), 
          x = sprintf("PCoA 1 (%.1f%%)", p$var[1]),
          y = sprintf("PCoA 2 (%.1f%%)", p$var[2])) +
     theme_sgma +

@@ -1,11 +1,6 @@
 #!/usr/bin/env Rscript
-# Builds the household-level tables read by 05_exposure.R, 15-17 and the exposure panel from
+# Builds household-level tables read by 05_exposure.R, 15-17 and the exposure panel from
 # the long-format household questionnaire exports.
-#   1. Adds hh_id to each long roster by joining hq_uuid to the field metadata.
-#   2. Pivots the animal roster, animal confinement, child-animal contact and child
-#      faeces contact rosters from long to wide (one row per household).
-#   3. Summarises the household member roster into sex-by-age-bin counts and appends them
-#      to the household demographics table.
 # Input directory $SGMA2_HOUSEHOLD (default data/household):
 #   sgma2_fieldmetadata.csv  hq_uuid -> hh_id map (hq_uuid, hh_id; other columns, including
 #                            coordinates, are not used)
@@ -39,7 +34,7 @@ stopifnot(!any(is.na(ref$uuid)))
 if (any(duplicated(ref$uuid)))
   stop("field metadata has duplicated hq_uuid, e.g. ", ref$uuid[duplicated(ref$uuid)][1])
 
-# One household entered the animal names in Swahili; harmonise to the English labels.
+# harmonise Swahili animal names to English labels.
 SWAHILI <- c("Ng'ombe" = "Cows", "Kuku" = "Chickens")
 label_cols <- c("animal", "anim_confined", "anim_contact", "feces_contact")
 

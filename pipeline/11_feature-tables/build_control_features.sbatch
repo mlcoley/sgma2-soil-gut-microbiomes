@@ -13,7 +13,7 @@
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
 # Runs build_control_features.py after the control libraries have been mapped to the
-# gene catalog (08_abundance-coverm/01_coverm_array.sh with MANIFEST=control_manifest.tsv).
+# gene catalog (08_abundance-coverm/01_coverm_array.sh with MANIFEST=control_manifest.tsv)
 # Needs about 48 GB: the gene-to-KO map is held in memory.
 # Output: assembly/genecat/controls/
 

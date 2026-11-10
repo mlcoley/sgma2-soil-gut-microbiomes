@@ -18,7 +18,7 @@
 # (sample, compartment), built from the sample metadata sheet:
 #   awk -F'\t' 'NR>1 && $5=="true_sample" && $9>=20000000{print $1"\t"$2}' \
 #     posthost_qc/decontam_metadata.tsv | sort -t$'\t' -k2,2 -k1,1 > assembly/assembly_manifest.tsv
-# Submit with --array=1-N%20 for N manifest rows. Resources: 32 CPUs, 120 GB.
+# Submit with --array=1-N%20 for N manifest rows.
 # Versions: MEGAHIT 1.2.9, QUAST 5.3.0, seqkit 2.13.0.
 # Output: assembly/assemblies/<sample>/<sample>.contigs.fa and quast/report.tsv
 

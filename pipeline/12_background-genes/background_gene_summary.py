@@ -140,7 +140,7 @@ def main():
 
     log("reading eggNOG annotations ...")
     ann = read_eggnog(a.eggnog, excludes)
-    log(f"annotated, non-ARG catalog genes: {len(ann):,}")
+    log(f"annotated catalog genes outside the ARG set: {len(ann):,}")
     assert ann, "no eggNOG annotations parsed — check the header/column detection"
 
     log("reading gene lengths ...")
@@ -212,8 +212,6 @@ def main():
     os.replace(tmp, a.out)
     log(f"wrote {n_out:,} gene rows ({n_nolen:,} dropped for missing length)")
 
-    # A silently-empty output here would look like a clean run and waste a
-    # second submission before anyone noticed.
     assert n_out > 0, "no rows written — refusing to publish an empty summary"
     log("done.")
 

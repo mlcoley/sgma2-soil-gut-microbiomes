@@ -1,6 +1,6 @@
 # Drops an interleaved read pair (8 lines) when either mate has an empty sequence
-# line. Removes the zero-length reads that samtools bam2fq can emit, which crash the
-# next minimap2 step, without desynchronising pairs. Pass-through on clean input.
+# line. Removes the zero-length reads that samtools bam2fq sometimes emits, which crash the
+# next minimap2 step, without desynchronizing pairs. Pass-through on clean input.
 # Usage: ... | samtools fastq ... - | awk -f pairfilt.awk > out.fq
 
 { b[(NR - 1) % 8 + 1] = $0 }

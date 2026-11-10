@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
-# Shared machinery for the same-household pair analyses (22_pair_classifier.R and
-# 23_feast_source_tracking.R).
+# Shared utils for the same-household pair analyses (24_pair_classifier.R and
+# 25_feast_source_tracking.R).
 #   r8_layers()                 feature layers aligned to one sample key
 #   r8_pair_index()             every unique pair, its stratum and household label
 #   r8_encode()                 symmetric pair encodings (presence co-occurrence; minimum abundance)
@@ -8,26 +8,12 @@
 #   r8_household_folds()        cross-validation folds assigned by household
 #   r8_permute_households()     household labels shuffled within compartment
 #   r8_permute_for_stratum()    stratum-aware permutation for cross-compartment strata
-# Three design points:
-#  1. Folds are assigned to households, never to pairs or samples; only pairs with both
-#     members held out are scored, and only pairs with both members in training
-#     households are trained on. Otherwise a sample seen in training and test pairs lets
-#     the model memorise it.
-#  2. The null shuffles household labels within compartment (shuffling across
-#     compartments would destroy the strata).
-#  3. Encodings are symmetric. The presence encoding sums to shared richness and the
-#     abundance encoding sums to Bray-Curtis similarity, so the classifier generalises
-#     statistics that are already measured.
 
 suppressPackageStartupMessages({ library(vegan) })
 
 # ---------------------------------------------------------------------------
 # Feature layers
 # ---------------------------------------------------------------------------
-# ARG variant (clinical) is the primary layer: at ARG family level the dung-to-soil
-# positive control reads z = +0.03, so a control on the family layer could never fire.
-# The variant matrix is built as in 07_rare_feature_sharing.R, with the gene-level
-# exclusion list.
 r8_layers <- function(include_ko = FALSE) {
   key    <- load_key()
   gating <- load_gating()
@@ -35,7 +21,7 @@ r8_layers <- function(include_ko = FALSE) {
   k      <- arg$key
   clin   <- clinical_args()
 
-  gene_gating <- load_gating("control_arg_genes_blocklist.tsv", "gene-level")
+  gene_gating <- load_gating("control_arg_genes_exclusion_list.tsv", "gene-level")
   gab <- read.delim(gzfile(file.path(FT_DIR, "arg_gene_abundance.tsv.gz")),
                     stringsAsFactors = FALSE)
   gab <- gab[gab$sample_id %in% k$sample_id, ]
@@ -74,10 +60,6 @@ r8_layers <- function(include_ko = FALSE) {
 # ---------------------------------------------------------------------------
 # Returns one row per unique unordered pair: the two sample row indices, the
 # compartment-pair stratum, and whether the two share a household.
-#
-# gut-gut and dung-dung are retained in the index but flagged `testable = FALSE`: with
-# one gut and one dung per household those strata contain no positive cases, so a model
-# fitted across them can only learn compartment.
 r8_pair_index <- function(key) {
   n  <- nrow(key)
   ij <- t(combn(n, 2))
@@ -115,12 +97,6 @@ R8_STRATUM_LABEL <- c(
 # abundance : elementwise minimum of the two within-sample relative abundances.
 #             Unweighted row sum is Bray-Curtis similarity, the statistic measured
 #             at AUC 0.500 on the dung-to-soil stratum.
-#
-# Summary columns (summaries = TRUE): the fixed statistics that detect the dung-to-soil
-# signal are sums over many weak binary indicators (shared rare-feature counts, Jaccard),
-# which a depth-3 tree rebuilds only slowly. Supplying the sums as columns (prevalence
-# caps 1.00, 0.25, 0.10; shared count and Jaccard each) makes the unweighted statistic
-# available to the model as one feature, while the per-feature indicators remain.
 r8_encode <- function(M, pairs, encoding = c("presence", "abundance"),
                       summaries = FALSE) {
   encoding <- match.arg(encoding)
@@ -153,7 +129,7 @@ r8_encode <- function(M, pairs, encoding = c("presence", "abundance"),
 # ---------------------------------------------------------------------------
 # AUC, rank-based
 # ---------------------------------------------------------------------------
-# Mann-Whitney identity; handles ties and avoids an outer product at these pair counts.
+# Mann-Whitney identity
 r8_auc <- function(score, label) {
   np <- sum(label); nn <- sum(!label)
   if (np == 0 || nn == 0) return(NA_real_)
@@ -171,10 +147,9 @@ r8_household_folds <- function(households, k = 5) {
 }
 
 # ---------------------------------------------------------------------------
-# The null
+# null
 # ---------------------------------------------------------------------------
-# Shuffle household labels within compartment. Compartment structure, and hence
-# the strata themselves, are preserved; only the household assignment moves.
+# Shuffle household labels within compartment
 r8_permute_households <- function(key) {
   hh <- key$household
   for (cc in levels(key$compartment)) {
@@ -185,16 +160,9 @@ r8_permute_households <- function(key) {
 }
 
 # ---------------------------------------------------------------------------
-# Stratum-aware permutation: use this for cross-compartment strata.
+# Stratum-aware permutation use this for cross-compartment strata.
 # ---------------------------------------------------------------------------
-# Shuffling household labels inside every compartment reassigns which three soil
-# microsites form a household, so each permuted household gets three unrelated soils
-# while the observed data has three genuinely similar ones; the null becomes too narrow
-# and the observed z too large. To break the correspondence between two samples'
-# households it is sufficient to permute one side. Permuting only the singleton
-# compartment (stool or dung) leaves the soil triples intact. For soil-to-soil the free
-# permutation is correct: the hypothesis there is that microsites of one household
-# resemble each other.
+
 r8_permute_for_stratum <- function(key, stratum) {
   parts <- strsplit(stratum, "-", fixed = TRUE)[[1]]
   hh <- key$household

@@ -1,9 +1,9 @@
 #!/usr/bin/env Rscript
-# Per-analyte reliability of the ICRAF spectral predictions, and the screen that
-# selected the eight soil properties tested in 05_exposure.R.
-# Two statistics are reported for each analyte and must not be conflated:
+# Per-analyte reliability of the ICRAF spectral predictions, and a screen to
+# select soil properties to be tested in 05_exposure.R.
+# Two statistics are reported for each analyte:
 #   ICRAF R2   the model's performance on a 30% hold-out of ICRAF's own global library
-#              (criterion R2 >= 0.6), from Table 2 of the ICRAF report
+#              (criterion R2 >= 0.6)
 #   reliability = 1 - (RMSE_val / SD)^2, the share of the variation present in these
 #              152 soils that a prediction with that error can resolve; SD is computed
 #              from the per-sample predictions here (the report rounds SD to one decimal)
@@ -22,7 +22,7 @@ ICRAF_TAB <- file.path(DATA_DIR, "metadata", "icraf_J62_report_table2_validation
 log_lines <- c(sprintf("Soil analyte reliability - %s", Sys.time()), "")
 logmsg <- function(...) { m <- sprintf(...); cat(m, "\n"); log_lines[[length(log_lines)+1]] <<- m }
 
-# The eight retained and the five excluded, as in 05_exposure.R (asserted below).
+# 8 retained, 5 excluded
 SOIL_VARS <- c(soil_ph = "pH", soil_soc = "soil organic carbon", soil_tn = "total N",
                soil_cec = "CEC", soil_ext_calc = "extractable Ca",
                soil_ext_mg = "extractable Mg", soil_potassium = "K", soil_boron = "B")
@@ -41,8 +41,7 @@ ed <- read.csv(ed_path, stringsAsFactors = FALSE, fileEncoding = "UTF-8-BOM",
 logmsg("ICRAF prediction file: %d soil samples", nrow(ed))
 
 # The analysed cohort is a subset of the soils ICRAF ran. SD is taken over all of
-# them (the variation the prediction had to resolve); the analysed-cohort SD is
-# reported alongside.
+# them (the variation the prediction had to resolve)
 key <- load_key()
 soil_ids <- key$field_name[key$compartment == "soil"]
 in_cohort <- ed$sample_id %in% soil_ids
@@ -81,12 +80,12 @@ t7d <- do.call(rbind, rows)
 t7d <- t7d[order(-replace(t7d$reliability, is.na(t7d$reliability), -Inf)), ]
 rownames(t7d) <- NULL
 
-## ---- assertions: the table must reproduce the screen applied in 05_exposure.R
+## ---- table should reproduce the screen applied in 05_exposure.R
 ret <- t7d$our_variable[t7d$screen_outcome == "retained"]
 exc <- t7d$our_variable[t7d$screen_outcome == "excluded"]
 stopifnot(setequal(ret, names(SOIL_VARS)), setequal(exc, names(SOIL_EXCLUDED_VARS)))
 
-# every retained analyte must clear the threshold and every excluded one must fail it
+# retained analytes clear threshold and the excluded fail it
 r_ret <- t7d$reliability[t7d$screen_outcome == "retained"]
 r_exc <- t7d$reliability[t7d$screen_outcome == "excluded"]
 stopifnot(all(r_ret >= RELIABILITY_MIN), all(r_exc < RELIABILITY_MIN))

@@ -1,4 +1,4 @@
-# Site configuration. Edit, then submit every job from the repository root:
+# Site configuration. Edit, then submit every job from the repo root:
 #   cd <repo> && mkdir -p logs && sbatch pipeline/<stage>/<script>
 # Scripts source this file; override its location with SGMA2_CONFIG.
 # SLURM account and email are set in each script's #SBATCH header

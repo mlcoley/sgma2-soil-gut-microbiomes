@@ -1,7 +1,6 @@
 #!/usr/bin/env Rscript
 # Builders for the exposure-association figures (forest plot of the 54 primary tests
-# and the soil physico-chemical tests). Each reads its table from disk and computes
-# nothing, so a label fix never changes a result.
+# and the soil physico-chemical tests)
 # Requires 00_load_features.R to be sourced first.
 
 suppressPackageStartupMessages({ library(ggplot2) })
@@ -12,8 +11,7 @@ f11_read <- function(f) {
   read.delim(p, stringsAsFactors = FALSE)
 }
 
-# The shaded band is the smallest detectable effect at 80% power, read from the
-# table so the band and the reported threshold cannot disagree.
+# The shaded band is the smallest detectable effect at 80% power
 build_f11 <- function(t7b = f11_read("T7b_exposure_associations.tsv")) {
   d <- t7b[t7b$family == "primary", ]
   stopifnot(nrow(d) == 54, length(unique(d$mde_r_at_80pct)) == 1)
@@ -38,16 +36,13 @@ build_f11 <- function(t7b = f11_read("T7b_exposure_associations.tsv")) {
     facet_wrap(~response) +
     scale_colour_manual(values = cols, name = NULL) +
     labs(x = "Standardized effect (SD of response per unit or per level of exposure)",
-         y = NULL,
-         caption = sprintf(paste0("Shaded band: smallest detectable effect at 80%% power, ",
-                                  "|r| = %.2f at %d households."), mde, n_hh)) +
+         y = NULL) +
     theme_bw(base_size = 9) +
     theme(legend.position = "bottom",
-          panel.grid.minor = element_blank(),
-          plot.caption = element_text(size = 7, colour = "grey30", hjust = 0))
+          panel.grid.minor = element_blank())
 }
 
-# The 24 soil physico-chemical tests; the legend reads "BH-adjusted p".
+# Soil physico-chemical tests.
 build_f11b <- function(t7c = f11_read("T7c_soil_drivers.tsv")) {
   stopifnot(nrow(t7c) == 24)
   t7c$response  <- factor(response_display(t7c$response),
@@ -61,13 +56,10 @@ build_f11b <- function(t7c = f11_read("T7c_soil_drivers.tsv")) {
     facet_wrap(~response) +
     scale_colour_manual(values = c(`< 0.05` = "#B5462F", `≥ 0.05` = "grey55"),
                         name = "BH-adjusted p", breaks = c("< 0.05", "≥ 0.05")) +
-    labs(x = "Standardized effect (SD of response per SD of soil property)", y = NULL,
-         caption = paste0("Soil chemistry values are spectroscopic predictions ",
-                          "rather than direct measurements.")) +
+    labs(x = "Standardized effect (SD of response per SD of soil property)", y = NULL) +
     theme_bw(base_size = 9) +
     theme(legend.position = "bottom",
-          panel.grid.minor = element_blank(),
-          plot.caption = element_text(size = 7, colour = "grey30", hjust = 0))
+          panel.grid.minor = element_blank())
 }
 
 F11_FILES <- c(f11  = "F11_exposure_associations.png",

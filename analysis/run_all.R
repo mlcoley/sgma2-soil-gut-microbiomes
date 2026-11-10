@@ -1,20 +1,22 @@
 #!/usr/bin/env Rscript
 # Runs the analysis scripts in dependency order from the repository root.
-#   Rscript analysis/run_all.R            # scripts 01-25
-#   Rscript analysis/run_all.R 19 25      # scripts 19 through 25
+#   Rscript analysis/run_all.R            # scripts 01-27
+#   Rscript analysis/run_all.R 19 27      # scripts 19 through 27
 # 00_load_features.R and the util_*.R files are sourced by the scripts that need them.
-# The background comparison (18-21) needs a cluster round trip, so run it in stages:
+# The background comparison (18-23) needs HPC cluster, so run in stages:
 #   1. 18_background_target_profile.R writes T23c and T23d; copy them to
 #      $SGMA2_BASE/assembly and run pipeline/12_background-genes/background_gene_summary.sbatch
-#      (and copy background_gene_summary.tsv.gz and arg_gene_lengths.tsv to data/feature_tables).
+#      (+ copy background_gene_summary.tsv.gz and arg_gene_lengths.tsv to data/feature_tables).
 #   2. 19_background_match.R writes background_gene_ids.txt; copy it to
 #      $SGMA2_BASE/assembly, run pipeline/12_background-genes/extract_background_abundance.sbatch
 #      and copy background_abundance*.tsv.gz to data/feature_tables.
-#   3. 20_background_containment.R, 21_fig4.R.
-# 22_pair_classifier.R takes about 100 minutes at R8_NCORE=6 and is memory-bound; run it
+#   3. 20_background_match_nongut.R (restriction to catalog genes assembled from dung or soil;
+#      uses the abundance rows from step 2), then 21_background_containment.R,
+#      22_background_containment_nongut.R and 23_fig4.R.
+# 24_pair_classifier.R takes about 100 minutes at R8_NCORE=6 and is memory-bound; run it
 # with nothing else in R alongside it.
 # Scripts 15-17 read household metadata (see inputs/README.md); 05 must run before 15.
-set.seed(1)
+set.seed(543)
 
 scripts <- c(
   "01_build_single_copy_markers.R",
@@ -36,12 +38,14 @@ scripts <- c(
   "17_diet.R",
   "18_background_target_profile.R",
   "19_background_match.R",
-  "20_background_containment.R",
-  "21_fig4.R",
-  "22_pair_classifier.R",
-  "23_feast_source_tracking.R",
-  "24_supplement_source_tables.R",
-  "25_manuscript_tables.R"
+  "20_background_match_nongut.R",
+  "21_background_containment.R",
+  "22_background_containment_nongut.R",
+  "23_fig4.R",
+  "24_pair_classifier.R",
+  "25_feast_source_tracking.R",
+  "26_supplement_source_tables.R",
+  "27_manuscript_tables.R"
 )
 
 args  <- suppressWarnings(as.integer(commandArgs(trailingOnly = TRUE)))

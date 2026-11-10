@@ -1,15 +1,13 @@
 #!/usr/bin/env Rscript
 # Figure builders for the pair classifier (Figure S7) and its SHAP attribution
-# (Figure S8). They read tables and compute no statistic, so a caption or label fix
-# never re-runs the permutation. Every panel plots a value against the null it must be
-# read against.
+# (Figure S8). 
 
 suppressPackageStartupMessages({ library(ggplot2); library(dplyr) })
 
 R8_ROLE_COLS <- c(primary = "#B5462F", control = "#3F6B57")
 R8_STRAT_ORDER <- c("gut to soil", "gut to dung", "dung to soil", "soil to soil")
 
-# Strip text only: the `stratum` values in T40c-T40e are join keys.
+
 R8_STRAT_STRIP <- c("gut to soil"  = "child stool to soil",
                     "gut to dung"  = "child stool to cattle dung",
                     "dung to soil" = "cattle dung to soil",
@@ -27,7 +25,6 @@ r8_theme <- function() {
 }
 
 r8_figure_classifier <- function(t40d) {
-  # specification on the y axis, where the labels have the full panel width
   spec_lab <- c(primary        = "PRIMARY\npresence + summaries",
                 sens_nosummary = "sensitivity\npresence only",
                 sens_abundance = "sensitivity\nabundance + summaries")

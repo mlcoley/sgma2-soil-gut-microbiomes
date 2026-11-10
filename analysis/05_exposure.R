@@ -1,22 +1,20 @@
 #!/usr/bin/env Rscript
 # Exposure and soil-property associations with the compartment responses.
 #
-# Every household keeps cattle, so exposure terms measure intensity among keepers,
-# not presence. The unit is the household (39), so every model has an effective n of
+# Unit is the household (39), so every model has an effective n of
 # 38-39 and power is the binding constraint. Exposures are tested one at a time
 # (a multivariable model is not supportable at n = 39), with BH adjustment within
 # each family: primary, exploratory, and four household socioeconomic variables added
-# after the primary results were seen (kept out of the primary correction).
 #   * soil: lme4::lmer with a household random intercept (3 microsites per household)
 #   * stool, dung: lm on 39 / 38 rows
 #   * Gaussian models; clinical ARG richness has no zeros (asserted below).
-# A feasibility screen (T7a) runs before any model: binary variables need a minority
+# Feasibility screen : binary variables need a minority
 # class of >= 8 households, continuous variables >= 5 distinct values, and both need
-# >= 30 non-missing. Variables that fail, or that are judged not validly measured,
-# are excluded with the reason recorded.
-# Outputs: T7a (screen), T7b (exposure associations), T7c (soil properties), and the
+# >= 30 non-missing. Variables that fail, or that are not validly measured based on field knowledge,
+# are excluded
+# Outputs: T7a (screen), T7b (exposure associations), T7c (soil properties), and
 # forest plots for T7b and T7c.
-# Household metadata is read from $SGMA2_HOUSEHOLD; no coordinate is read or written.
+# Household metadata is read from $SGMA2_HOUSEHOLD
 # Usage: Rscript analysis/05_exposure.R   (from the repository root)
 
 suppressPackageStartupMessages({
@@ -83,9 +81,7 @@ MIN_NONMISS <- 30
 MIN_MINORITY <- 8
 MIN_LEVELS   <- 5
 
-# Construct-validity exclusions: variables that pass the statistical screen but do
-# not measure what the name says. Reported in T7a with the reason and excluded from
-# modelling.
+# Construct-validity exclusions: variables that pass the statistical screen but are not reliable.
 INVALID_MEASURE <- c(
   dung_to_crops = paste0(
     "not validly measured — the source item anim_confined_dungcrops_Cows sits ",
@@ -155,7 +151,7 @@ logmsg("n = %d households: smallest detectable |r| = %.2f (r^2 = %.0f%% of varia
 # ===========================================================================
 # Exposure -> response models -> T7b
 # ===========================================================================
-# Responses are standardized, so coefficients are in SD units.
+# coefficients are in SD units.
 RESPONSES <- c(arg_abundance = "clinical ARG abundance (per genome)",
                arg_richness  = "clinical ARG richness",
                ko_shannon    = "KO Shannon diversity")
@@ -199,7 +195,7 @@ grid <- expand.grid(cmp = COMP_LEVELS, rsp = names(RESPONSES), xv = usable,
 t7b <- do.call(rbind, lapply(seq_len(nrow(grid)), function(i)
   fit_one(grid$cmp[i], grid$rsp[i], grid$xv[i])))
 
-# BH within each family separately, never pooled.
+# BH within each family separately
 t7b$q_BH <- ave(t7b$p, t7b$family, FUN = function(p) p.adjust(p, method = "BH"))
 ip <- t7b$family == "primary"
 t7b$mde_r_at_80pct <- round(MDE_R, 3)
@@ -224,7 +220,7 @@ save_fig(build_f11(t7b), F11_FILES[["f11"]], width = 11, height = 5)
 # ===========================================================================
 # Soil properties -> T7c
 # ===========================================================================
-# Soil chemistry values are ICRAF FTIR-model predictions, not wet chemistry. Only
+# Soil chemistry values are ICRAF FTIR-model predictions. Only
 # properties whose predictions are reliable against the variation in these soils
 # (1 - (RMSE / SD)^2: pH 87%, SOC 88%, K 95%, Ca 91%, B 87%, Mg 78%, CEC 77%, TN 69%)
 # are tested; Mn (20%), Cu and Al (13%), and Fe, PSI, S and exchangeable acidity

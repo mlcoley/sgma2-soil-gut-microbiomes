@@ -2,17 +2,17 @@
 """Control libraries in ARG-symbol and KO feature space.
 
 Turns the per-control CoverM outputs into feature profiles. Writes an audit table
-(every feature x control with read counts), a candidate blocklist from negative and
+(every feature x control with read counts), a proposed exclusion list from negative and
 PCR blanks only (positive duplicates and mocks never contribute), and an impact table
-showing how many features each read threshold would remove. The candidate blocklist
+showing how many features each read threshold would remove. The proposed exclusion list
 lists features at >= 5 reads (DEFAULT_MIN_READS) and is not applied until copied to
-feature_tables/ without ".CANDIDATE" in its name.
+feature_tables/ without ".unapplied" in its name.
 
 Inputs (under $SGMA2_BASE/assembly): coverm/<control>.tsv, control_manifest.tsv
 (sample, control_type), genecat/amr/arg_hits_long.tsv.gz,
 genecat/eggnog/catalog_ko_ec.tsv.gz.
 Outputs (genecat/controls/): control_features_detected.tsv,
-control_features_blocklist.CANDIDATE.tsv, control_blocklist_impact.tsv,
+control_features_exclusion_list.unapplied.tsv, control_exclusion_list_impact.tsv,
 control_features_report.txt.
 """
 import gzip, os, sys
@@ -27,11 +27,11 @@ HITS = f"{GEN}/amr/arg_hits_long.tsv.gz"
 KOEC = f"{GEN}/eggnog/catalog_ko_ec.tsv.gz"
 OUTD = f"{GEN}/controls"
 
-# Detection threshold (reads) for the candidate list; the impact table spans a range.
+# Detection threshold (reads) for the proposed list; the impact table spans a range.
 DEFAULT_MIN_READS = 5
 IMPACT_THRESHOLDS = [1, 2, 5, 10, 50]
-# Only these control types contribute to a blocklist.
-BLOCKLIST_TYPES = {"neg_blank", "pcr_blank"}
+# Only these control types contribute to an exclusion list.
+EXCLUSION_LIST_TYPES = {"neg_blank", "pcr_blank"}
 
 
 def load_manifest():
@@ -58,7 +58,7 @@ def load_gene_to_arg():
 
 def load_gene_to_ko():
     # catalog_ko_ec.tsv.gz: gene_id, KEGG_ko, EC. KEGG_ko is a comma list with a
-    # 'ko:' prefix; '-' means none. Same parsing as build_ko_table.py.
+    # 'ko:' prefix; '-' means none. Same parsing as build_ko_table.py
     g2k = {}
     with gzip.open(KOEC, "rt") as fh:
         first = fh.readline().rstrip("\n").split("\t")
@@ -130,11 +130,11 @@ def main():
                 out.write(f"{ft}\t{feat}\t{s}\t{ctype[s]}\t{c}\n")
     print(f"wrote {aud}", flush=True)
 
-    # ---- blocklist impact across thresholds --------------------------------
-    blk_controls = {s for s, t in present if t in BLOCKLIST_TYPES}
-    imp = f"{OUTD}/control_blocklist_impact.tsv"
+    # ---- exclusion list impact across thresholds --------------------------------
+    blk_controls = {s for s, t in present if t in EXCLUSION_LIST_TYPES}
+    imp = f"{OUTD}/control_exclusion_list_impact.tsv"
     with open(imp, "w") as out:
-        out.write("min_reads\tfeature_type\tn_features_blocked\n")
+        out.write("min_reads\tfeature_type\tn_features_excluded\n")
         for thr in IMPACT_THRESHOLDS:
             cnt = defaultdict(int)
             for (ft, feat), per in detected.items():
@@ -144,8 +144,8 @@ def main():
                 out.write(f"{thr}\t{ft}\t{cnt[ft]}\n")
     print(f"wrote {imp}", flush=True)
 
-    # ---- CANDIDATE blocklist (requires a deliberate rename to activate) ----
-    cand = f"{OUTD}/control_features_blocklist.CANDIDATE.tsv"
+    # ---- unapplied exclusion list (requires a deliberate rename to activate) ----
+    cand = f"{OUTD}/control_features_exclusion_list.unapplied.tsv"
     n_c = 0
     with open(cand, "w") as out:
         out.write("feature\tfeature_type\tmax_count_in_negative_control\tn_negative_controls\n")
@@ -155,21 +155,21 @@ def main():
             if hits:
                 out.write(f"{feat}\t{ft}\t{max(hits.values())}\t{len(hits)}\n")
                 n_c += 1
-    print(f"wrote {cand} ({n_c} candidate features at >={DEFAULT_MIN_READS} read)", flush=True)
+    print(f"wrote {cand} ({n_c} features proposed for exclusion at >={DEFAULT_MIN_READS} read)", flush=True)
 
     with open(f"{OUTD}/control_features_report.txt", "w") as out:
         out.write("Control feature profiles\n\n")
         out.write(f"controls mapped: {len(present)} of {len(controls)}\n")
         if missing:
             out.write(f"missing CoverM output: {','.join(missing)}\n")
-        out.write(f"negative controls used for the candidate blocklist: "
+        out.write(f"negative controls used for the proposed exclusion list: "
                   f"{','.join(sorted(blk_controls))}\n")
-        out.write(f"candidate blocked features at >={DEFAULT_MIN_READS} read: {n_c}\n\n")
-        out.write("Positive duplicates and mock are NOT used for gating - they are real\n"
+        out.write(f"features proposed for exclusion at >={DEFAULT_MIN_READS} read: {n_c}\n\n")
+        out.write("Positive duplicates and mock are NOT used for contamination filtering - they are real\n"
                   "material, carried here for FDR calibration and recovery checks.\n\n")
-        out.write("To apply gating, choose a threshold from control_blocklist_impact.tsv and\n")
+        out.write("To apply the contamination filter, choose a threshold from control_exclusion_list_impact.tsv and\n")
         out.write("write the chosen features, one per line under a `feature` header, to\n")
-        out.write("feature_tables/control_features_blocklist.tsv\n")
+        out.write("feature_tables/control_features_exclusion_list.tsv\n")
     print("done", flush=True)
 
 

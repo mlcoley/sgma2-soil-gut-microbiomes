@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
-# Shared paths, constants and loaders. Sourced by every analysis script.
-# Run all scripts from the repository root.
+# Shared paths, constants and loaders sourced by every analysis script
+# Run all scripts from the repository root
 #
 # Environment variables (all optional):
 #   SGMA2_DATA       input directory (default: ./data)
@@ -27,7 +27,7 @@ for (.sgma2_dir in c(FIG_DIR, TAB_DIR, LOG_DIR))
   dir.create(.sgma2_dir, recursive = TRUE, showWarnings = FALSE)
 rm(.sgma2_dir)
 
-# Feature layers. `scope` is where the layer is usable.
+# Feature layers. `scope` indicates where the layer is usable based on taxonomic classification
 LAYERS <- list(
   tax_phylum  = list(file = "cohort_phylum.tsv",         type = "woltka", scope = "gut"),
   tax_genus   = list(file = "cohort_genus.tsv",          type = "woltka", scope = "gut"),
@@ -40,7 +40,7 @@ LAYERS <- list(
 COMP_LEVELS <- c("gut", "dung", "soil")
 COMP_COLS   <- c(gut = "#B5462F", dung = "#C08A2A", soil = "#3F6B57")
 # Presence is count > MIN_COUNT. Breadth-filtered (covered fraction >= 0.5) tables
-# are the parallel *_cf50 files and are reported alongside, not instead.
+# are the parallel *_cf50 files and are reported alongside
 MIN_COUNT   <- 0
 
 ## ---- sample key ----------------------------------------------------------
@@ -144,9 +144,9 @@ arg_category <- function(ann = load_arg_annotation()) {
 ## ---- negative-control filtering ------------------------------------------
 # The symbol-level exclusion list holds ARG features detected at >= 5 reads in any
 # negative control. KO is not filtered. Gene-level analyses use
-# control_arg_genes_blocklist.tsv instead; never apply one list to the other level.
+# control_arg_genes_exclusion_list.tsv instead never apply one list to the other level.
 # The list's key column is `feature` (symbol level) or `gene_id` (gene level).
-load_gating <- function(file = "control_features_blocklist.tsv", label = "symbol-level") {
+load_gating <- function(file = "control_features_exclusion_list.tsv", label = "symbol-level") {
   f <- file.path(FT_DIR, file)
   if (!file.exists(f))
     return(list(applied = FALSE, features = character(0),
@@ -158,14 +158,14 @@ load_gating <- function(file = "control_features_blocklist.tsv", label = "symbol
                       label, nrow(bl)))
 }
 
-# Drop blocked columns from a samples x features matrix.
+# Drop excluded columns from a samples x features matrix.
 drop_gated <- function(M, gating) {
   if (!gating$applied) return(M)
   M[, !colnames(M) %in% gating$features, drop = FALSE]
 }
 
-# Apply gating to a get_layer() result in place, re-dropping all-zero features
-# and warning if any sample is emptied (which would break distance metrics).
+# Apply the contamination filter to a get_layer() result in place, re-dropping all-zero features
+# and warning if any sample gets all filtered out which would break distance metrics).
 gate_layer <- function(layer, gating = load_gating()) {
   if (!gating$applied) { layer$gating <- gating; return(layer) }
   n0 <- ncol(layer$M)
@@ -173,7 +173,7 @@ gate_layer <- function(layer, gating = load_gating()) {
   M <- M[, colSums(M) > 0, drop = FALSE]
   empty <- rownames(M)[rowSums(M) == 0]
   if (length(empty))
-    warning(sprintf("gating emptied %d sample(s): %s", length(empty),
+    warning(sprintf("contamination filter emptied %d sample(s): %s", length(empty),
                     paste(empty, collapse = ", ")), call. = FALSE)
   layer$M <- M
   layer$gating <- gating
@@ -189,13 +189,13 @@ gating_col <- function(gating) if (gating$applied) "contamination-filtered" else
 # displayed label changes. Unmapped values pass through unchanged.
 LAYER_DISPLAY <- c(
   "ARG (clinical)"        = "ARG family (clinical)",
-  "ARG (all)"             = "ARG family (all)",
+  "ARG (all)"             = "All-ARG family",
   "ARG allele (clinical)" = "ARG variant (clinical)",
-  "ARG allele (all)"      = "ARG variant (all)",
+  "ARG allele (all)"      = "All-ARG variant",
   "ARG clinical"          = "ARG family (clinical)",
-  "ARG (resistome)"       = "ARG family",
+  "ARG (resistome)"       = "All-ARG family",
   "ARG (filtered)"        = "ARG family (filtered)",
-  "ARG"                   = "ARG family",
+  "ARG"                   = "All-ARG family",
   "resistome (ARG)"       = "resistome (ARG)",
   "gut resistome (ARG)"   = "gut resistome (ARG)",
   "KO (function)"         = "KO (function)",
@@ -208,8 +208,7 @@ LAYER_DISPLAY <- c(
 layer_display <- function(x, wrap = FALSE) {
   out <- unname(LAYER_DISPLAY[as.character(x)])
   out[is.na(out)] <- as.character(x)[is.na(out)]
-  # "KO (function)" is short enough to sit on one line; breaking it just makes
-  # the strip taller for no gain, so only the two long resistance labels wrap.
+
   if (wrap) {
     long <- grepl("family|variant", out)
     out[long] <- sub(" \\(", "\n(", out[long])
@@ -249,7 +248,7 @@ EXPOSURE_DISPLAY <- c(
   cows_head              = "Cattle (head)",
   total_livestock_head   = "Cattle and chickens (head)",
   cows_in_compound       = "Cattle kept in a pen or stable in the compound",
-  child_touch_feces      = "Child touches livestock faeces",
+  child_touch_feces      = "Child touches livestock feces",
   child_antibiotics_2mo  = "Child given antibiotics in the past two months",
   vet_meds_cows          = "Veterinary medicines given to cattle",
   chickens_head          = "Chickens (head)",
@@ -271,7 +270,7 @@ response_display <- function(x) .map_display(x, RESPONSE_DISPLAY)
 
 ## ---- per-genome normalization --------------------------------------------
 # Single-copy factor per sample = median abundance of the 57 bacterial ribosomal-
-# protein marker KOs in the KO table; dividing by it gives copies per average genome.
+# protein marker KOs in the KO table; dividing by this gives copies per average genome.
 load_single_copy_markers <- function() {
   f <- file.path(FT_DIR, "single_copy_marker_kos.tsv")
   if (!file.exists(f)) stop("run: Rscript analysis/01_build_single_copy_markers.R")
@@ -285,7 +284,7 @@ load_single_copy_markers <- function() {
 NORM_METHOD <- "single_copy"
 
 # Returns list(factor = named per-sample vector, method = label), following
-# NORM_METHOD. Falls back to the single-copy marker median with a warning if
+# NORM_METHOD. Fallback to the single-copy marker median with a warning if
 # the MicrobeCensus table is requested but absent.
 genome_factor <- function(key = load_key(), method = NORM_METHOD) {
   ge_f <- file.path(FT_DIR, "microbecensus_ge.tsv")

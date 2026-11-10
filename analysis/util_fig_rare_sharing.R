@@ -1,14 +1,6 @@
 #!/usr/bin/env Rscript
 # Figure 5 (main) and Figure S3 (supplement): within-household excess similarity for
-# the rare-feature sweep. Computes no statistic; draws from T13.
-#
-# A point is one whole test (the mean within-household similarity across all 38-39
-# households, in standard deviations from the mean of 999 household-label
-# permutations), not one sample pair. The prevalence cap is in facet columns, since it
-# is four categories, and the compartment pair is on the x axis. BH is applied across
-# the full 120-test sweep; the main figure shows only the two ARG-variant layers
-# (48 tests) and uses the full-sweep adjusted p-values, not a recomputation on the
-# subset.
+# rare features
 
 suppressPackageStartupMessages({ library(ggplot2); library(dplyr) })
 if (!exists("logmsg")) logmsg <- function(...) cat(sprintf(...), "\n")
@@ -33,8 +25,6 @@ f17_prep <- function(t13) {
     BH     = ifelse(q_BH < 0.05, "survives BH", "no"))
 }
 
-# n_tests is passed in because the main figure draws a subset while BH was applied
-# across the full sweep.
 f17_draw <- function(d, n_tests) {
   nf <- d %>% distinct(layer, caplab, n_features)
   ggplot(d, aes(pairx, z)) +
@@ -71,16 +61,13 @@ f17_draw <- function(d, n_tests) {
            shape = guide_legend(order = 2, override.aes = list(fill = "grey55", colour = "grey55", stroke = .25, size = 2.8)))
 }
 
-# Figure 5: the two ARG-variant layers.
+# Figure 5: two ARG-variant layers.
 f17a_main <- function(t13) {
   d <- f17_prep(t13[t13$layer %in% F17_VARIANT, , drop = FALSE])
   f17_draw(d, n_tests = nrow(t13))
 }
 
-# Figure S3: all five layers. At tight caps the feature space is small enough that z
-# and the empirical p disagree at the 5% level; the check below stops the figure if
-# such a cell ever falls in a variant layer or survives BH, since the figure does not
-# mark them.
+# Figure S3: all five layers
 f17b_supplement <- function(t13) {
   n_clear <- sum(t13$z > 1.96)
   n_bh    <- sum(t13$q_BH < 0.05)

@@ -1,18 +1,9 @@
 #!/usr/bin/env Rscript
 # Within-household excess similarity restricted to rare features.
-# Whole-profile household tests are dominated by cosmopolitan features that cannot
-# individuate a household, so the test is repeated on feature spaces capped at a
-# series of household prevalences (100%, 50%, 25%, 10%). Same statistic and null at
-# every cap; only the feature space changes. Prevalence is measured over households
+# Whole-profile household tests are dominated by rare features that cannot
+# individuate a household, so this repeats on feature spaces capped at a
+# series of household prevalences (100%, 50%, 25%, 10%). Prevalence is measured over households
 # (a feature is present in a household if it occurs in any of its compartments).
-# For each layer, cap, metric (Jaccard on presence, Bray-Curtis on abundance) and
-# compartment pair, the mean within-household similarity (diagonal of the household x
-# household matrix) is compared with 999 permutations of the household labels. BH is
-# applied across the whole sweep (120 tests). Restricting to rare features lowers the
-# feature count and widens the null, so the minimum detectable effect (mde_pct) is
-# reported for every cell. Every cell reaching BH-adjusted p < 0.05 gets an influence
-# check (T13c): the leave-one-household-out test for the household supplying the most
-# of the excess, and for H016. The null is rebuilt without the dropped household.
 # Outputs: T13 (sweep), T13b (power trade-off), T13c (influence), Figures 5 and S3.
 # Usage: Rscript analysis/07_rare_feature_sharing.R   (from the repository root)
 
@@ -36,7 +27,7 @@ ko     <- get_layer("ko_all", key)
 clin   <- clinical_args()
 
 # ARG variant layers: gene-level exclusion list (never the symbol-level list)
-GENE_GATING <- load_gating("control_arg_genes_blocklist.tsv", "gene-level")
+GENE_GATING <- load_gating("control_arg_genes_exclusion_list.tsv", "gene-level")
 gab <- read.delim(gzfile(file.path(FT_DIR, "arg_gene_abundance.tsv.gz")), stringsAsFactors = FALSE)
 gab <- gab[gab$sample_id %in% key$sample_id, ]
 g_samp <- sort(unique(gab$sample_id)); g_gene <- sort(unique(gab$gene_id))
@@ -84,8 +75,8 @@ perm_test <- function(M, n_perm = N_PERM) {
        p = (1 + sum(nul >= obs)) / (n_perm + 1))
 }
 
-# Household prevalence of each feature: in how many households does it appear in
-# at least one compartment?
+# Household prevalence of each feature (how many households does it appear in
+# at least one compartment)
 hh_prevalence <- function(M, kk) {
   P <- M >= THR
   hh <- as.character(kk$household)
@@ -93,7 +84,7 @@ hh_prevalence <- function(M, kk) {
   colMeans(agg)
 }
 
-## ---- the sweep -----------------------------------------------------------
+## ---------------------------------------------------------------
 logmsg("== rare-feature sweep ==")
 logmsg("prevalence measured over %d households; caps: %s",
        length(unique(key$household)), paste0(100 * PREV_CAPS, "%", collapse = ", "))
@@ -113,7 +104,7 @@ for (ln in names(LAYERS)) {
              100 * cap, length(keepf)); next
     }
     Mk <- Mx[, keepf, drop = FALSE]
-    # Samples emptied by the restriction would give undefined similarities.
+    # Samples emptied by applyinh the cap would give undefined similarities.
     empt <- sum(rowSums(Mk >= THR) == 0)
     for (metric in c("Jaccard (presence)", "Bray-Curtis (abundance)")) {
       S <- if (metric == "Jaccard (presence)") jaccard(Mk >= THR) else bray_sim(Mk)
@@ -135,7 +126,7 @@ for (ln in names(LAYERS)) {
   }
 }
 t13 <- do.call(rbind, res)
-# BH across the whole sweep.
+# BH across
 t13$q_BH <- p.adjust(t13$p, method = "BH")
 t13$contamination_filter <- gating_col(GATING)
 t13[] <- lapply(t13, function(x) if (is.numeric(x)) round(x, 4) else x)
@@ -165,12 +156,9 @@ for (i in seq_len(nrow(mde_by_cap)))
 save_tab(mde_by_cap, "T13b_rare_feature_power_tradeoff.tsv")
 
 # ===========================================================================
-# Influence check on every cell reaching BH-adjusted p < 0.05 -> T13c
+# Influence every cell reaching BH-adjusted p < 0.05 -> T13c
 # ===========================================================================
-# H016's dung sample is the most soil-like in the cohort. A leave-one-out on a
-# permutation statistic must drop the household from the null as well as from the
-# observed statistic, so the household x household matrix is subset (not just the
-# diagonal entry skipped).
+# H016's dung sample is the most soil-like in the cohort
 logmsg("")
 logmsg("== influence check on significant cells ==")
 sig <- t13[t13$q_BH < 0.05, ]

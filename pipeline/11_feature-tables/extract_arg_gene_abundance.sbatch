@@ -13,8 +13,8 @@
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
 # Extracts the ARG-bearing catalog genes (gene ids in arg_hits_long.tsv.gz) from the
-# gene x sample abundance table, keeping count > 0 rows with covered_fraction.
-# Streams the full table, so it runs as a batch job.
+# gene x sample abundance table, keeping count > 0 rows with covered_fraction
+# Streams the full table, so runs as a batch job
 # Output: genecat/amr/arg_gene_abundance.tsv.gz (gene_id, sample_id, count,
 #   covered_fraction), arg_gene_abundance_report.txt
 

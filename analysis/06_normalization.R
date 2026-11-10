@@ -1,14 +1,10 @@
 #!/usr/bin/env Rscript
 # Per-genome normalization: MicrobeCensus genome equivalents (GE) against the
 # single-copy marker proxy.
-# Clinical ARG abundance is reported as copies per average genome. Two denominators
-# exist: (A) the median count of 57 bacterial ribosomal-protein marker KOs, measured
+# Clinical ARG abundance as copies per average genome. Two denominators
+# (A) the median count of 57 bacterial ribosomal-protein marker KOs, measured
 # through the gene catalog, and (B) MicrobeCensus GE = total bases / average genome
-# size, computed from reads and independent of the catalog. The ARG numerator is
-# catalog-mapped under either choice, so catalog capture cancels in the ratio only
-# for (A). Compartment rankings and the per-compartment tilt of the two factors are
-# compared, and the tilt is related to a catalog-capture proxy (reads on KO-carrying
-# genes / post-host reads).
+# size, computed from reads and independent of the catalog.
 # Outputs: T11a-T11d.
 # Usage: Rscript analysis/06_normalization.R   (from the repository root)
 
@@ -58,7 +54,6 @@ d$capture      <- d$ko_reads / d$posthost_reads
 d <- d[!is.na(d$ge) & !is.na(d$single_copy), ]
 
 ## ---- independent validation of the GE table ------------------------------
-# GE = total_bases / AGS, so GE * AGS must reproduce the library's base count.
 d$implied_bases <- d$ge * d$ags
 bases_r <- suppressWarnings(cor(log10(d$implied_bases), log10(d$posthost_bases),
                                 use = "complete.obs"))
@@ -81,9 +76,7 @@ for (i in seq_len(nrow(cors)))
   logmsg("agreement [%-4s] n=%3d  Spearman %.3f  Pearson(log10) %.3f",
          cors$subset[i], cors$n[i], cors$spearman[i], cors$pearson_log[i])
 
-## ---- the compartment-bias test -------------------------------------------
-# The two factors are on different scales, so the ratio single-copy / GE is scaled
-# to the cohort median (1.0 = normalized identically by both).
+## ---- compartment-bias test -------------------------------------------
 d$ratio     <- d$single_copy / d$ge
 d$ratio_rel <- d$ratio / median(d$ratio)
 
@@ -119,7 +112,7 @@ logmsg("MAX COMPARTMENT TILT = %.2fx (%s vs %s)", tilt,
        comp_sum$compartment[which.max(comp_sum$ratio_rel_median)],
        comp_sum$compartment[which.min(comp_sum$ratio_rel_median)])
 
-## ---- does the tilt track catalog capture? --------------------------------
+## ---- does the tilt track catalog capture --------------------------------
 cap_r  <- cor(log10(d$ratio_rel), log10(d$capture), method = "pearson")
 cap_rs <- cor(d$ratio_rel, d$capture, method = "spearman")
 logmsg("")
@@ -132,7 +125,7 @@ for (cc in COMP_LEVELS) {
 }
 
 ## ---- consequence for clinical ARG abundance --------------------------------
-# Units differ between denominators, so compare the between-compartment ratios.
+# compare between-compartment ratios
 arg  <- gate_layer(get_layer("arg", key), GATING)
 clin <- intersect(clinical_args(), colnames(arg$M))
 clin_counts <- rowSums(arg$M[, clin, drop = FALSE])

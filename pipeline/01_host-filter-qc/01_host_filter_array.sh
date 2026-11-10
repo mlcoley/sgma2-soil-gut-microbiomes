@@ -13,10 +13,10 @@
 #SBATCH -A YOUR_ACCOUNT
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
-# Per-sample host depletion: fastp adapter/length trim, then minimap2 against the
+# Per-sample host depletion: fastp adapter/length trim, then minimap2 with
 # cattle (Bos taurus + indicus), GRCh38 and T2T-Y indexes, keeping read pairs that
 # are unmapped at each stage. pairfilt.awk removes zero-length reads so pairs stay
-# synchronised. Reads row N of $SGMA2_BASE/fastq/sample_list.tsv
+# synchronized. Reads row N of $SGMA2_BASE/fastq/sample_list.tsv
 # (sample, R1 path, R2 path); set --array=1-N for N samples.
 # Output: host_filter/filtered_fastq/<sample>_{1,2}.filt.fq.gz
 # SRA_HUMAN_ONLY=true (default false) gives the SRA deposit: no adapter, quality or

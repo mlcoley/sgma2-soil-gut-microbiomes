@@ -1,8 +1,5 @@
 #!/usr/bin/env Rscript
-# ECDF of clinical ARG abundance by compartment. Computes no statistic beyond the
-# separation check: it reads T_arg_abundance.tsv, so a caption or axis fix never
-# re-runs 02_descriptive.R. The log axis is for the dung and soil distributions; it
-# does not make the gut/environment gap (a 1.3% ratio) any more visible.
+# ECDF of clinical ARG abundance by compartment
 # Usage: Rscript analysis/util_fig_ecdf.R
 
 suppressPackageStartupMessages({ library(ggplot2); library(dplyr) })

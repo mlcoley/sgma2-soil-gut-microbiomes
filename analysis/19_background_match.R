@@ -1,25 +1,5 @@
 #!/usr/bin/env Rscript
-# Builds the matched non-ARG background gene sets.
-# Draws the background only; the containment tests are in 20_background_containment.R,
-# so the matched sets and their balance can be inspected before any result exists.
-# Background genes are matched to the clinical ARG genes on occupancy magnitude (mean
-# prevalence rate across compartments), abundance and gene length, and not on occupancy
-# shape (which compartments a gene occurs in): containment is computed from compartment
-# feature sets, so the per-compartment triple is the outcome, and matching on it would
-# make expected containment identical by construction. Prevalence is therefore split
-# into magnitude (matched) and shape (left free). A shape-matched arm still runs, as a
-# bound.
-# Arms:
-#   arm1_magnitude  gene-level; matched on magnitude + abundance + length (primary)
-#   arm1_shape      as arm1 plus the occupancy-shape stratum (bound)
-#   arm2_family     eggNOG orthologous groups size-matched to the ARG families on the
-#                   distribution of members per group, with exact per-family size, then
-#                   members chosen closest on the three detectability axes
-# Quantile bins are defined from the ARG distribution (8 magnitude x 8 abundance x 4
-# length = 256 cells); sampling is without replacement within a draw and with
-# replacement across the 100 draws. Pool exclusions: every AMRFinderPlus gene, genes
-# without an eggNOG annotation, genes without a KO, and KOs for mobility machinery,
-# defence systems and metal/biocide resistance.
+# Builds the matched background gene sets.
 # Inputs: T23a, T23b (18_background_target_profile.R), feature_tables/
 # background_gene_summary.tsv.gz and arg_gene_lengths.tsv (pipeline/12_background-genes).
 # Outputs: T25 set files (arm1_magnitude, arm1_shape, arm2_family), T25_arm2_family_map,
@@ -29,11 +9,10 @@
 
 suppressPackageStartupMessages({ library(data.table); library(dplyr) })
 source("analysis/00_load_features.R")
-# data.table is used to read the ~15M-row background summary
 
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
-set.seed(1)
+set.seed(191)
 B_DRAW    <- 100    # matched sets per arm
 N_BIN_MAG <- 8      # quantile bins, occupancy magnitude
 N_BIN_ABN <- 8      # quantile bins, log10 abundance
@@ -44,13 +23,11 @@ PRIMARY   <- "clinical"
 
 BG_FILE  <- file.path(FT_DIR, "background_gene_summary.tsv.gz")
 ARG_LEN  <- file.path(FT_DIR, "arg_gene_lengths.tsv")
-N_COMP   <- c(gut = 39, dung = 38, soil = 117)          # analysed cohort, 194
+N_COMP   <- c(gut = 39, dung = 38, soil = 117)       
 
 cat("\n=== build matched background sets ===\n\n")
 
 ## ---- inputs --------------------------------------------------------------
-# ARG gene lengths are not in T23a (the cluster summary job excludes ARG genes);
-# arg_gene_lengths.tsv is the 2,518-row extract from catalog_gene_lengths.tsv.
 for (f in c(BG_FILE, ARG_LEN)) {
   if (!file.exists(f)) stop(sprintf(
     "missing input: %s\n  built by pipeline/12_background-genes/background_gene_summary.sbatch", f))
@@ -59,7 +36,7 @@ for (f in c(BG_FILE, ARG_LEN)) {
 arg <- read.delim(file.path(TAB_DIR, "T23a_arg_target_profile.tsv"),
                   stringsAsFactors = FALSE)
 if (PRIMARY == "clinical") arg <- arg[arg$is_clinical, ]
-# arg_gene_lengths.tsv is headerless; detect rather than assume a header
+# arg_gene_lengths.tsv is headerless
 alen <- read.delim(ARG_LEN, stringsAsFactors = FALSE, header = FALSE)
 if (identical(as.character(alen[1, 1]), "gene_id")) alen <- alen[-1, , drop = FALSE]
 names(alen)[1:2] <- c("gene_id", "gene_length")
@@ -69,14 +46,14 @@ cat(sprintf("ARG target genes (%s): %d  (lengths joined for %d)\n",
             PRIMARY, nrow(arg), sum(!is.na(arg$gene_length))))
 arg <- arg[!is.na(arg$gene_length) & arg$total_count > 0, ]
 
-# decompressed through a pipe (fread's gz support needs R.utils)
+# decompressed through a pipe (fread gz support needs R.utils)
 bg <- fread(cmd = paste("gzip -dc", shQuote(BG_FILE)), sep = "\t",
             header = TRUE, showProgress = FALSE)
 cat(sprintf("background pool as delivered: %s genes\n", format(nrow(bg), big.mark = ",")))
 
 ## ---- semantic exclusions ---------------------------------------------------
-# AMRFinderPlus genes and unannotated genes were already dropped by the cluster job;
-# these are the remaining exclusions, matched on KO identifiers.
+# AMRFinderPlus genes and unannotated genes were already dropped by HPC job
+# remaining exclusions, matched on KO identifiers
 MOBILITY_KO <- c(
   # transposase / integrase / recombinase / IS elements
   "K07497", "K07496", "K07495", "K07483", "K07484", "K07485", "K07486", "K07487",
@@ -103,10 +80,8 @@ METAL_KO <- c(
 )
 EXCLUDE_KO <- unique(c(MOBILITY_KO, DEFENCE_KO, METAL_KO))
 
-# Only about half the pool carries a KO, so the screen above cannot see the rest.
-# REQUIRE_KO restricts the pool to KO-annotated genes, which is the analogous
-# restriction to the clinical ARG subset being limited to well-characterised
-# determinants (element_type == "AMR" & scope == "core").
+# restricting pool to KO-annotated genes is analogous to the clinical ARG subset 
+# limited to well-characterised determinants (element_type == "AMR" & scope == "core").
 REQUIRE_KO <- TRUE
 
 n0 <- nrow(bg)
@@ -127,7 +102,7 @@ bg <- bg[total_count > 0 & !is.na(gene_length) & gene_length > 0]
 cat(sprintf("background pool after exclusions: %s genes\n", format(nrow(bg), big.mark = ",")))
 
 ## ---- axes ----------------------------------------------------------------
-# magnitude as a rate per compartment, so soil's 117 samples do not dominate a raw count
+# magnitude as a rate per compartment so soil does not dominate a raw count
 magnitude <- function(g, d, s) (g / N_COMP["gut"] + d / N_COMP["dung"] + s / N_COMP["soil"]) / 3
 
 arg$mag <- magnitude(arg$prev_gut, arg$prev_dung, arg$prev_soil)
@@ -137,13 +112,13 @@ bg[, mag := magnitude(prev_gut, prev_dung, prev_soil)]
 bg[, abn := log10(total_count)]
 bg[, len := gene_length]
 
-# shape: the free axis; used for reporting and for the shape-matched arm
+# shape: the free axis; used for reporting and for shape-matched arm
 shape_pattern <- function(g, d, s)
   paste0(ifelse(g > 0, "G", "-"), ifelse(d > 0, "D", "-"), ifelse(s > 0, "S", "-"))
 arg$shape <- shape_pattern(arg$prev_gut, arg$prev_dung, arg$prev_soil)
 bg[, shape := shape_pattern(prev_gut, prev_dung, prev_soil)]
 
-## ---- bins, defined from the ARG distribution ------------------------------
+## ---- bins defined from the ARG distribution ------------------------------
 mkbin <- function(x, edges) cut(x, breaks = edges, include.lowest = TRUE, labels = FALSE)
 qedges <- function(x, n) unique(quantile(x, seq(0, 1, length.out = n + 1), na.rm = TRUE))
 
@@ -229,9 +204,9 @@ report_arm(arm1,  arg, "cell")
 report_arm(arm1S, arg, "cellS")
 
 ## ---- arm 2: family granularity ------------------------------------------
-# Matched on the distribution of members per group: the ARG family-size distribution is
-# extremely skewed (median 1, 70% of symbols singletons), so a median target would be
-# satisfied by almost any grouping.
+# Matched on the distribution of members per group
+# ARG family-size distribution is highly skewed (median 1, 70% of symbols singletons) 
+# so a median target would be satisfied by almost any grouping
 fam <- read.delim(file.path(TAB_DIR, "T23b_arg_family_granularity.tsv"),
                   stringsAsFactors = FALSE)
 target_sizes <- sort(fam$n_genes_detected, decreasing = TRUE)
@@ -256,25 +231,20 @@ lev <- if (dist_to_target(sz_narrow) <= dist_to_target(sz_bact)) "og_narrow" els
 cat(sprintf("  -> using %s (log-quantile distance %.3f vs %.3f)\n", lev,
             dist_to_target(sz_narrow), dist_to_target(sz_bact)))
 
-# The feature count must match exactly, not approximately (SES scales with sqrt(N)). For
-# each ARG family of size k, take an OG with at least k members and subsample k of them:
-# exact per-family size, exact total, and the family-size distribution reproduced by
-# construction. Families with no OG large enough are recorded as shortfalls. OGs are
-# chosen on size and on how closely their members' detectability profile matches the ARG
-# family, and the members taken are the closest ones, so family structure is not
-# confounded with detectability.
+# For each ARG family of size k, take an OG with at least k members and subsample k of them:
+# exact per-family size, exact total, and the family-size distribution reproduced
 bg[, lev_og := get(lev)]
 og_stat <- bg[lev_og != "-", .(N = .N, mmag = median(mag), mabn = median(abn),
                                mlen = median(log10(len))), by = lev_og]
 setnames(og_stat, "lev_og", "og")
 setorder(og_stat, N)
 
-# ARG family centroids on the same three axes.
+# ARG family centroids on the same three axes
 fam_cent <- as.data.table(arg)[, .(k = .N, mmag = median(mag), mabn = median(abn),
                                    mlen = median(log10(len))), by = arg_symbol]
 setorder(fam_cent, -k)
 
-# Standardise so the three axes contribute comparably to the distance.
+# Standardise so the three axes contribute comparably to the distance
 sds <- c(mag = sd(og_stat$mmag), abn = sd(og_stat$mabn), len = sd(og_stat$mlen))
 bg_by_og <- split(bg$gene_id, bg$lev_og)
 bg_idx   <- split(seq_len(nrow(bg)), bg$lev_og)
@@ -350,7 +320,7 @@ save_sets(list(sets = fam_sets, label = "arm2_family"))
 save_tab(fam_draw, "T25_arm2_family_map.tsv")
 
 
-# Union of every selected gene: the input to the cluster abundance-extraction job.
+# Union of every selected gene: input to the cluster abundance-extraction job
 ids <- sort(unique(c(unlist(arm1$sets), unlist(arm1S$sets), unlist(fam_sets))))
 writeLines(ids, file.path(TAB_DIR, "background_gene_ids.txt"))
 cat(sprintf("wrote background_gene_ids.txt (%s genes)\n", format(length(ids), big.mark = ",")))

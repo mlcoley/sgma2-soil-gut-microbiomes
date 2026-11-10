@@ -59,7 +59,7 @@ echo "Prodigal (-p meta) ... $(date +'%H:%M:%S')"
 prodigal -i "$CONTIGS_IN" -p meta -f gff -q \
          -a "${TMP}/raw.faa" -d "${TMP}/raw.ffn" -o "${TMP}/raw.gff"
 
-# ---- prefix sample id onto every gene/contig id (see CRITICAL note above) ----
+# ---- prefix sample id onto every gene/contig id (see note above) ----
 sed "s/^>/>${s}_/" "${TMP}/raw.faa" > "${TMP}/out/${s}.faa"
 sed "s/^>/>${s}_/" "${TMP}/raw.ffn" > "${TMP}/out/${s}.ffn"
 awk -v s="$s" 'BEGIN{FS=OFS="\t"} /^#/{print;next} NF==0{print;next} {$1=s"_"$1; print}' \

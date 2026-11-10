@@ -1,23 +1,7 @@
 #!/usr/bin/env Rscript
 # Exposure associations against compositional (multivariate) responses.
-# Every scalar-response test regresses exposures on a summary (clinical ARG abundance,
-# richness, KO Shannon); composition can shift without moving any of them, so each
-# usable exposure (T7a) is tested against the Bray-Curtis (primary) and Aitchison
-# (sensitivity) composition of each compartment's KO and ARG-family layers.
 # Output: T31a. BH is applied within family (primary, exploratory, post hoc SES), on
-# Bray-Curtis only, as in 05_exposure.R; dung_to_crops is excluded there.
-# Methods:
-#  * Soil has 117 samples from 39 households and every exposure is household-level,
-#    so permutation shuffles the 39 household values and re-expands them. Stool and
-#    dung have one sample per household and permute freely (the same operation with a
-#    group size of 1).
-#  * The R2 floor is the mean R2 across the permutation distribution, correct under
-#    restricted permutation; for stool and dung the closed form 1/(n-1) is reported
-#    beside it as a check.
-#  * R2 of a 1-df term is computed in closed form from the Gower matrix, which makes
-#    999 vector permutations cheap; it is validated against vegan::adonis2 below and
-#    the script stops if they disagree.
-#  * betadisper is run on every binary exposure and reported NA for continuous ones.
+# Bray-Curtis only, as in 05_exposure.R
 # Requires T7a (run 05_exposure.R first).
 # Usage: Rscript analysis/15_exposure_multivariate.R   (from the repository root)
 
@@ -74,7 +58,7 @@ EXPOSURE_LABELS <- c(
 stopifnot(all(USABLE %in% names(EXPOSURE_LABELS)))
 
 # ===========================================================================
-# PERMANOVA machinery
+# PERMANOVA
 # ===========================================================================
 clr <- function(M) { L <- log(M + 1); sweep(L, 1, rowMeans(L), "-") }
 
@@ -94,10 +78,10 @@ r2_1df <- function(G, x, trG) {
   as.numeric(crossprod(xc, G %*% xc)) / (ss * trG)
 }
 
-#' PERMANOVA for one (layer x exposure), with the permutation restricted to
-#' households. `hh` gives each row's household; shuffling operates on the
-#' UNIQUE households and re-expands, so microsites of one household always move
-#' together. With one sample per household this reduces to free permutation.
+# PERMANOVA for one (layer x exposure), with the permutation restricted to
+# households. `hh` gives each row's household; shuffling operates on the
+# UNIQUE households and re-expands, so microsites of one household always move
+# together. With one sample per household this reduces to free permutation.
 permanova_hh <- function(G, trG, x, hh, nperm = N_PERM) {
   obs <- r2_1df(G, x, trG)
   uh  <- unique(hh)
@@ -116,8 +100,6 @@ permanova_hh <- function(G, trG, x, hh, nperm = N_PERM) {
        n_units = length(uh))
 }
 
-# Layers per compartment. Reference taxonomy is usable in stool only, and nothing else
-# in the analysis works in taxonomic feature space, so no taxonomic layer is tested.
 LAYERS_BY_COMP <- list(
   gut  = c("function (KO)" = "ko", "resistome (ARG)" = "arg"),
   dung = c("function (KO)" = "ko", "resistome (ARG)" = "arg"),
@@ -125,8 +107,7 @@ LAYERS_BY_COMP <- list(
 MAT <- list(ko = ko$M, arg = arg$M)
 
 # ---------------------------------------------------------------------------
-# Validation against vegan::adonis2 before any result is computed, on a real layer
-# with one binary and one continuous predictor.
+# Validation against adonis2
 # ---------------------------------------------------------------------------
 logmsg("")
 logmsg("== validating the closed-form R2 against vegan::adonis2 ==")
@@ -205,7 +186,7 @@ for (cmp in COMP_LEVELS) {
 }
 t31a <- do.call(rbind, rows)
 
-# BH within family, on the primary distance only.
+# BH within family
 t31a$q_BH <- NA_real_
 bc <- t31a$distance == "Bray-Curtis"
 t31a$q_BH[bc] <- ave(t31a$p[bc], t31a$family[bc], FUN = function(p) p.adjust(p, method = "BH"))
@@ -213,7 +194,7 @@ t31a$contamination_filter <- gating_col(GATING)
 t31a <- t31a[order(t31a$distance != "Bray-Curtis", t31a$family != "primary", t31a$p), ]
 save_tab(t31a, "T31a_exposure_compositional_associations.tsv")
 
-# recompute `bc` after the reorder
+# recompute `bc` after reorder
 n_comp_layer <- sum(lengths(LAYERS_BY_COMP))
 bc <- t31a$distance == "Bray-Curtis"
 stopifnot(sum(bc) == nrow(t31a) / 2,

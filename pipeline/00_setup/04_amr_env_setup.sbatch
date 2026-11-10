@@ -12,7 +12,7 @@
 #SBATCH -A YOUR_ACCOUNT
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
-# Builds the amr conda env (AMRFinderPlus, seqkit), downloads the AMRFinderPlus
+# Builds amr conda env (AMRFinderPlus, seqkit), downloads AMRFinderPlus
 # database and records its version. Run once.
 
 source "${SGMA2_CONFIG:-config/paths.sh}"

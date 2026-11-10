@@ -12,7 +12,7 @@
 #SBATCH -A YOUR_ACCOUNT
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
-# Per-sample read mapping to the gene catalog with CoverM (minimap2-sr). Emits raw
+# Per-sample read mapping to the gene catalog with CoverM (minimap2-sr). Produces raw
 # read count and covered fraction for every catalog gene (--min-covered-fraction 0),
 # so presence thresholds are applied downstream. Counts are not normalised here.
 # One array task per row of assembly_manifest.tsv; submit with --array=1-N%8.

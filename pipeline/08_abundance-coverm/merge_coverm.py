@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Stack per-sample CoverM outputs into one sparse long gene x sample table.
+"""Combine per-sample CoverM outputs into one sparse long gene x sample table.
 
 Inputs (under $SGMA2_BASE/assembly): coverm/<sample>.tsv (Contig, read count,
 covered fraction), genecat/catalog_gene_lengths.tsv (gene order reference),
@@ -45,7 +45,7 @@ with open(MANIFEST) as fh:
             samples.append(f[0])
 log("samples in manifest:", len(samples))
 
-# --- pre-flight: every sample TSV must exist before we write anything ---
+# --- before run: every sample TSV must exist before writing anything ---
 missing = [s for s in samples if not os.path.isfile(os.path.join(COVERM, s + ".tsv"))]
 if missing:
     log("ERROR: missing CoverM TSVs for", len(missing), "samples:", ",".join(missing))

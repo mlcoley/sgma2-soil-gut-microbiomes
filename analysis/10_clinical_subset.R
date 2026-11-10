@@ -1,16 +1,11 @@
 #!/usr/bin/env Rscript
-# Sensitivity of the headline results to the definition of the clinical ARG subset.
+# Sensitivity of results to the definition of the clinical ARG subset.
 # clinical_args() is AMRFinderPlus element_type == "AMR" & scope == "core". Four
-# definitions are run; virulence elements are never included.
+# definitions are run
 #   A  AMR & core                 (used in the paper)
 #   B  AMR, any scope             (adds 9 mostly chromosomal efflux/related symbols)
 #   C  AMR & core + STRESS & core (adds 3 quaternary-ammonium resistance symbols)
 #   D  AMR any scope + STRESS core
-# n_symbols counts the definition's symbols that are columns of the wide ARG table
-# (all 229 libraries); n_symbols_detected counts those detected in the 194 analysed
-# samples (170 under A). One construction is held fixed and only the subset varies, so
-# columns are comparable to each other; there is no equal-effort subsampling, so SES
-# and z are not comparable to T8b. Read the spread across rows, not the level.
 # Output: T20.
 # Usage: Rscript analysis/10_clinical_subset.R   (from the repository root)
 
@@ -26,7 +21,7 @@ logmsg <- function(...) { m <- sprintf(...); cat(m, "\n"); log_lines[[length(log
 ann  <- load_arg_annotation()
 key  <- load_key()
 GAT  <- load_gating()
-GGAT <- load_gating("control_arg_genes_blocklist.tsv", "gene-level")
+GGAT <- load_gating("control_arg_genes_exclusion_list.tsv", "gene-level")
 
 DEFS <- list(
   A = list(label = "AMR & core (current)",        sel = ann$element_type == "AMR" & ann$scope == "core"),
@@ -85,8 +80,7 @@ for (d in names(DEFS)) {
   ses_sym <- ses(Ssym, Ssym$gut, env)
 
   # ARG variant layer under this definition. Subset membership is a property of the
-  # definition; contamination exclusion at this layer is the gene-level list's job
-  # alone (applied to `gab` above), never the symbol-level list.
+  # definition
   cg  <- names(g2s)[g2s %in% DEFS[[d]]$symbols]
   ga  <- gab[gab$gene_id %in% cg, ]
   ssm <- sort(unique(ga$sample_id)); ggn <- sort(unique(ga$gene_id))

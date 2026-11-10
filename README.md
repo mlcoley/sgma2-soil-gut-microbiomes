@@ -7,7 +7,7 @@ Kisumu county, western Kenya. Code has two parts:
   (host filtering, taxonomy, assembly, gene catalog, abundance, annotation, resistance genes).
 - `analysis/`: R scripts that implement the analyses, using as inputs the feature tables and household metadata.
 
-Reads with human sequences removed are deposited in SRA [ACCESSION]. Feature tables and
+Reads with human sequences removed are deposited in SRA [PRJNA1551843]. Feature tables and
 de-identified household, child and soil metadata are archived at OSF [10.17605/OSF.IO/3G2Z5](https://doi.org/10.17605/OSF.IO/3G2Z5);
 `inputs/README.md` lists each input file and its columns.
 
@@ -16,7 +16,7 @@ de-identified household, child and soil metadata are archived at OSF [10.17605/O
 ```
 config/paths.sh        scratch root and database directory for the cluster scripts
 pipeline/              cluster stages 00-13 (see pipeline/README.md)
-analysis/              R scripts 01-25, run_all.R, utilities (see analysis/README.md)
+analysis/              R scripts 01-27, run_all.R, utilities (see analysis/README.md)
 inputs/README.md       every input file, its columns and where it comes from
 ```
 
@@ -42,7 +42,7 @@ Rscript analysis/run_all.R
 
 Run from the repository root. Defaults are `./data`, `./data/household` and `./output`.
 Outputs are written to `$SGMA2_OUT/tables`, `figures`, `logs`, `tables_docx` and
-`supplementary_data`. The background comparison in scripts 18-21 requires HPC;
+`supplementary_data`. The background comparison in scripts 18-23 requires HPC;
 `analysis/run_all.R` documents the steps. Download the OSF project files and point `SGMA2_DATA` and `SGMA2_HOUSEHOLD` at its folders.
 
 ## Software
@@ -60,11 +60,16 @@ Outputs are written to `$SGMA2_OUT/tables`, `figures`, `logs`, `tables_docx` and
 
 ## Reproducibility notes
 
-- Every script sets its own seed.
-- Tables from scripts 02-21, 23 and 24 were regenerated from the deposited inputs and match the
-  tables used in the manuscript exactly. The pair classifier (22) forks workers for its
-  permutation null, which is not seed-reproducible; its deterministic calibration table (`T40c`)
-  matches exactly, and its permutation results can differ slightly between runs.
+- Every script that draws random numbers sets its own seed.
+- `run_all.R` was run end to end on the deposited inputs. Every manuscript table and figure matches
+  the version used in the manuscript, with three exceptions:
+  - The deposited household files give child age in whole months, not dates of birth, so the
+    child-age rows of Data S3 (script 16) differ in the third decimal place. No conclusion changes.
+  - The pair classifier (24) forks workers for its permutation null, which is not
+    seed-reproducible. Its AUCs and its calibration table (`T40c`) match exactly; its permutation
+    p-values differ slightly between runs (Table S15).
+  - The jittered points in Figure 2 fall in different positions; the data, boxes and statistics
+    are identical.
 - SRA reads are the raw reads filtered against GRCh38 and T2T-Y only (`SRA_HUMAN_ONLY=true` in `pipeline/01_host-filter-qc/01_host_filter_array.sh`). All analyses use the fastp-trimmed, cattle- and human-filtered reads.
 - One library was re-run through host filtering with `pairfilt.awk`; the other 255 ran before it
   was added. The filter passes clean read pairs through unchanged, so the two versions give the

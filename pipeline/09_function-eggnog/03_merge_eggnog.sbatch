@@ -13,7 +13,7 @@
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
 # Concatenates the per-chunk eggNOG annotation files (one header, no '##' lines)
-# and extracts a slim table of gene_id, KEGG_ko and EC. Refuses to run until every
+# and extracts a slim table of gene_id, KEGG_ko and EC. Does not run until every
 # chunk has a done marker. KEGG_ko and EC can be comma-separated lists.
 # Output: genecat/eggnog/catalog_eggnog_annotations.tsv.gz, catalog_ko_ec.tsv.gz,
 #   eggnog_merge_report.txt

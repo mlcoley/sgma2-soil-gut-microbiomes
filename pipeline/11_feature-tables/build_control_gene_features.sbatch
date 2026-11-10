@@ -12,7 +12,7 @@
 #SBATCH -A YOUR_ACCOUNT
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
-# Runs build_control_gene_features.py on the control CoverM outputs.
+# Runs build_control_gene_features.py on the control CoverM outputs
 # Output: assembly/genecat/controls/
 
 source "${SGMA2_CONFIG:-config/paths.sh}"

@@ -1,12 +1,7 @@
 #!/usr/bin/env Rscript
-# Word-table and CSV machinery for 25_manuscript_tables.R: fonts, borders, header
-# typography, captions, the .docx and .csv writers, and a vocabulary guard that stops
-# before writing if banned wording would reach a reader-facing file. Defines functions
+# Word-table and CSV utils for 27_manuscript_tables.R: fonts, borders, header
+# typography, captions, the .docx and .csv writers. Defines functions
 # only.
-# Conventions: fmt_p() never prints "<0.001" (every permutation p has a floor at
-# 1/(n_perm + 1)); fmt_p_tail() is for asymptotic p-values (Kruskal-Wallis, Wilcoxon);
-# adjusted p-values are labelled "BH-adjusted p"; layer and compartment names go through
-# layer_display() and compartment_display() so tables and figures print the same words.
 
 suppressPackageStartupMessages({
   library(officer)
@@ -59,7 +54,7 @@ term_display <- function(x) {
   out
 }
 
-# Presence rules are stored as the code expression that defines them. A table
+# Presence defs are stored as the code expression that defines them. A table
 PRESENCE_RULE_DISPLAY <- c(
   "count >= 1"              = "≥ 1 read",
   "count >= 5"              = "≥ 5 reads",
@@ -103,7 +98,7 @@ pair_display <- function(x) {
 
 STATISTIC_DISPLAY <- c(
   "Bray-Curtis similarity"               = "Bray\u2013Curtis similarity",
-  "shared richness"                      = "Shared variant richness",
+  "shared richness"                      = "Co-detected variant richness",
   "rare co-presence (prev<=0.25)"        = "Rare-variant co-presence (prevalence \u2264 25%)",
   "rare Jaccard (prev<=0.25)"            = "Rare-variant Jaccard (prevalence \u2264 25%)",
   "rare co-presence (prev<=0.10)"        = "Rare-variant co-presence (prevalence \u2264 10%)",
@@ -149,8 +144,6 @@ BANNED_HARD <- c("gating", "gated", "ungated", "blocklist", "blocked",
 BANNED_SOFT <- c("drivers", "q-value", "q_BH", "qBH")
 
 assert_reader_safe <- function(spec) {
-  # A lettered table holds its cells one level down, and a guard that silently
-  # checks nothing is worse than no guard. Recurse before collecting text.
   if (!is.null(spec$parts)) {
     invisible(lapply(spec$parts, assert_reader_safe))
     spec <- list(title = spec$title, df = data.frame(), caption = spec$caption)
@@ -213,7 +206,7 @@ tbl_parts <- function(title, parts, caption = character(0))
                                                    font.size = 10,
                                                    vertical.align = "superscript"))
 
-#' Footnotes are plain strings; *stars* mark italic runs.
+
 fn_fpar <- function(s) {
   parts <- strsplit(s, "\\*")[[1]]
   chunks <- lapply(seq_along(parts), function(i)
@@ -226,7 +219,7 @@ hdr_paragraph <- function(x) {
   if (x == "p") return(as_paragraph(.hdri("p")))
   if (x == "F") return(as_paragraph(.hdri("F")))
   if (x == "n") return(as_paragraph(.hdri("n")))
-  # "BH-adjusted p" and friends: italicise only the trailing symbol
+
   m <- regmatches(x, regexec("^(.*\\s)(p|F|n)$", x))[[1]]
   if (length(m) == 3) {
     lead <- hdr_chunks_r2(m[2])
@@ -302,9 +295,6 @@ build_ft <- function(t) {
 }
 
 # --- writers ----------------------------------------------------------------
-
-#' One part: heading, its own caption, table. `heading` chooses the weight,
-#' so the same routine sets a standalone table and a lettered part.
 .add_block <- function(doc, t, heading = .title_fpar) {
   doc <- body_add_fpar(doc, heading(t$title))
   for (cp in t$caption) doc <- body_add_fpar(doc, fn_fpar(cp))
@@ -317,8 +307,7 @@ build_ft <- function(t) {
 .add_table <- function(doc, t) {
   if (is.null(t$parts)) return(.add_block(doc, t))
 
-  # Lettered table: one number, one heading, the shared caption, then each part
-  # under its own letter.
+
   doc <- body_add_fpar(doc, .title_fpar(t$title))
   for (cp in t$caption) doc <- body_add_fpar(doc, fn_fpar(cp))
   for (i in seq_along(t$parts)) {
@@ -328,8 +317,6 @@ build_ft <- function(t) {
   doc
 }
 
-#' One .docx per table. Landscape, because these tables are wider than the
-#' COMETS originals -- a 9-column PERMANOVA table does not fit portrait at 10 pt.
 write_table_docx <- function(t, filename, landscape = TRUE) {
   assert_reader_safe(t)
   sec <- if (landscape)
@@ -347,8 +334,6 @@ write_table_docx <- function(t, filename, landscape = TRUE) {
 XLSX_SHEET_DATA <- "Data"
 XLSX_SHEET_DEFS <- "Definitions"
 
-#' One data worksheet, styled the same way whether it is the only sheet or one
-#' of several.
 .add_xlsx_sheet <- function(wb, name, df) {
   openxlsx::addWorksheet(wb, name)
   openxlsx::writeData(wb, name, df, headerStyle = openxlsx::createStyle(
@@ -363,8 +348,6 @@ XLSX_SHEET_DEFS <- "Definitions"
 write_table_xlsx <- function(t, filename) {
   assert_reader_safe(t)
 
-  # One spec and a multi-sheet workbook are the same object with one sheet, so
-  # normalise here rather than branching through the whole function.
   sheets <- if (!is.null(t$sheets)) t$sheets else
     stats::setNames(list(t), XLSX_SHEET_DATA)
 
@@ -382,8 +365,6 @@ write_table_xlsx <- function(t, filename) {
   wb <- openxlsx::createWorkbook()
   for (nm in names(sheets)) .add_xlsx_sheet(wb, nm, sheets[[nm]]$df)
 
-  # Glossary: every sheet's columns, under its own heading when there is more
-  # than one, so a definition can never be attached to the wrong sheet.
   defs <- do.call(rbind, lapply(names(sheets), function(nm) {
     d <- sheets[[nm]]$definitions
     body <- data.frame(Column = names(d), Definition = unname(d),
@@ -404,8 +385,6 @@ write_table_xlsx <- function(t, filename) {
                       headerStyle = openxlsx::createStyle(
                         textDecoration = "bold", fontName = FONT_DOCX, fontSize = 10))
   if (length(t$caption)) {
-    # *stars* mark italics in the .docx path; a spreadsheet cell has no runs, so
-    # they are stripped before writing.
     notes <- gsub("\\*", "", t$caption)
     openxlsx::writeData(wb, XLSX_SHEET_DEFS, data.frame(Notes = notes),
                         startRow = nrow(defs) + 5,
@@ -464,7 +443,6 @@ write_table_csv <- function(t, basename) {
   invisible(c(data_file, defs_file))
 }
 
-#' Combined document, one table per page, same content and styling.
 write_tables_docx <- function(tables, filename = "all_tables.docx", landscape = TRUE) {
   invisible(lapply(tables, assert_reader_safe))
   doc <- read_docx()

@@ -1,12 +1,10 @@
 #!/usr/bin/env Rscript
-# QC and batch audit.
-#   Check 1  read depth by sample type (blanks should be near-empty): T17a
-#   Check 2  separation of controls from biological samples, on Woltka genus (the
-#            only layer covering controls): T17b
+# QC and batch effect investigation
+#   Check 1  read depth by sample type: T17a
+#   Check 2  separation of controls from biological samples, on Woltka genus: T17b
 #   Check 3  sequencing-plate effects, tested overall and within each compartment
 #            because plate is unbalanced across compartments: T17c; and whether the
 #            dung-soil household signal survives a plate-restricted permutation: T17d
-# Every PERMANOVA is reported with the random-grouping expectation (g - 1) / (n - 1).
 # Usage: Rscript analysis/08_qc_batch_audit.R   (from the repository root)
 
 suppressPackageStartupMessages({ library(dplyr); library(tidyr); library(vegan) })
@@ -44,9 +42,6 @@ for (i in seq_len(nrow(t17a)))
 
 blanks <- meta[meta$sample_type %in% c("neg_blank", "pcr_blank"), ]
 bio    <- meta[meta$sample_type == "true_sample", ]
-# The shallowest biological library (P181, 25,052 reads) is the failed dung library
-# already dropped from the analyzed cohort, so blanks are compared with the analyzed
-# cohort only.
 analyzed <- rownames(get_layer("ko_all", load_key())$M)
 bio_an <- bio[bio$sample_id %in% analyzed, ]
 logmsg("shallowest 'biological' overall is %s at %.0f reads — the failed library already dropped",
@@ -105,7 +100,7 @@ for (cl in c("biological", "blank", "positive control", "mock"))
     logmsg("  median distance to nearest biological — %-17s %.3f", cl,
            median(nn_to_bio[mm$class == cl]))
 
-# positive controls are aliquots of known donors
+# positive controls are aliquots of donor study samples
 pos <- mm[mm$class == "positive control" & !is.na(mm$pos_dup_of), ]
 if (nrow(pos)) {
   hit <- 0
@@ -167,10 +162,10 @@ for (i in seq_len(nrow(t17c)))
          t17c$layer[i], t17c$scope[i], t17c$n[i], t17c$R2[i],
          t17c$R2_null_expected[i], t17c$R2_excess[i], t17c$p[i])
 
-## ---- is the dung-soil household signal a plate effect? -------------------
+## ---- is the dung-soil household signal a plate effect -------------------
 logmsg("")
 logmsg("== check 3b: dung-soil household signal vs plate ==")
-GENE_GATING <- load_gating("control_arg_genes_blocklist.tsv", "gene-level")
+GENE_GATING <- load_gating("control_arg_genes_exclusion_list.tsv", "gene-level")
 gab <- read.delim(gzfile(file.path(FT_DIR, "arg_gene_abundance.tsv.gz")), stringsAsFactors = FALSE)
 gab <- gab[gab$sample_id %in% key$sample_id & !gab$gene_id %in% GENE_GATING$features, ]
 hits <- read.delim(gzfile(file.path(FT_DIR, "arg_hits_long.tsv.gz")), stringsAsFactors = FALSE)
@@ -224,8 +219,6 @@ rest <- perm_z(HM, strata = dung_plate)
 logmsg("  UNRESTRICTED permutation : z = %+.2f, p = %.3f", free["z"], free["p"])
 logmsg("  PLATE-RESTRICTED         : z = %+.2f, p = %.3f  (labels shuffled only within a dung plate)",
        rest["z"], rest["p"])
-# The restriction holds the dung side's plate constant; the soil side still varies, so
-# this bounds the plate contribution rather than eliminating it.
 t17d <- data.frame(test = c("unrestricted", "plate-restricted"),
                    observed = c(free["obs"], rest["obs"]), null_mean = c(free["null"], rest["null"]),
                    z = c(free["z"], rest["z"]), p = c(free["p"], rest["p"]),

@@ -67,7 +67,7 @@ for ID in 0.95 0.90 0.85 0.80; do
   NCL=$(cut -f1 "$OUT/arg_id${TAG}_cluster.tsv" | sort -u | wc -l)
   NMEM=$(wc -l < "$OUT/arg_id${TAG}_cluster.tsv")
   echo "    id=$ID -> $NCL clusters covering $NMEM genes"
-  rm -f "$OUT/arg_id${TAG}_all_seqs.fasta"   # not needed downstream, and large-ish
+  rm -f "$OUT/arg_id${TAG}_all_seqs.fasta"   # large and not needed downstream
 done
 
 echo "=== DONE ==="

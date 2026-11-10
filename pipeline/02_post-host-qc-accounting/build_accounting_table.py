@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble the read-accounting table.
+"""Assemble a read-accounting table.
 
 Inputs: --sheet step1_samplesheet.tsv, --seqkit directory of <sample_id>.seqkit.tsv,
 --logdir host-filter logs (optional; adds per-host removal columns), --out TSV.
@@ -140,7 +140,7 @@ def main():
             if raw is None: flags.append("no_fastp_json")
             if ph  is None: flags.append("no_seqkit")
             if (pf is not None and ph is not None and ph > pf):
-                flags.append("posthost>postfastp?")  # sanity: shouldn't happen
+                flags.append("posthost>postfastp?")  # sense check:shouldn't happen
 
             # per-host breakdown (only meaningful for samples with surviving reads)
             cow_rm = grch_rm = t2ty_rm = human_rm = ""

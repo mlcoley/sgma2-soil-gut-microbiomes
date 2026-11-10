@@ -13,7 +13,7 @@
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
 # Builds the genecat conda env (prodigal, mmseqs2, coverm, eggnog-mapper, seqkit).
-# The eggNOG database is not downloaded here. Run once.
+# The eggNOG database is not downloaded here. Run this once
 
 set -euo pipefail
 set +u

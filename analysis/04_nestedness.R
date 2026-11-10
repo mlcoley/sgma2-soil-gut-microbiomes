@@ -1,15 +1,10 @@
 #!/usr/bin/env Rscript
-# Directional containment of child-stool features in the environment (cattle dung +
-# soil) at equal sampling effort, with the hypergeometric null.
-#
-# A compartment's feature set is a union over its samples and grows with sample
-# number (soil 117 samples, stool 39), so every metric is computed on equal-sized
-# subsamples (n = the smallest compartment) over B_SUB draws and reported as
-# mean +/- sd. The null draws a source-sized set at random from the union of the
-# three compartments; containment then follows a hypergeometric distribution,
-# E[C(A->B)] = |B| / N, so the SES uses the exact moments rather than a simulation.
+# Directional containment between the compartments at
+# equal sampling effort, with hypergeometric null.
+
 # Outputs: T8a (equal-effort richness), T8b (containment and SES), T8f (gut and
-# environment feature counts), Figure 3.
+# environment feature counts), T8g (feature counts for each compartment pair),
+# Figure 3 (one panel per compartment pair).
 # Usage: Rscript analysis/04_nestedness.R   (from the repository root)
 
 suppressPackageStartupMessages({
@@ -35,10 +30,10 @@ arg <- get_layer("arg", key)
 ko  <- get_layer("ko_all", key)
 
 # ARG-family layers use the symbol-level exclusion list; gene-level (variant)
-# layers use the gene-level list. Never apply one list to the other level.
+# layers use the gene-level list
 GATING <- load_gating()
 logmsg("filter: %s", GATING$note)
-GENE_GATING <- load_gating("control_arg_genes_blocklist.tsv", "gene-level")
+GENE_GATING <- load_gating("control_arg_genes_exclusion_list.tsv", "gene-level")
 
 # ARG variant layers: catalog representative genes (95% identity clusters).
 gab <- read.delim(gzfile(file.path(FT_DIR, "arg_gene_abundance.tsv.gz")), stringsAsFactors = FALSE)
@@ -169,6 +164,9 @@ for (ln in names(LAYERS_OQ2)) {
 # ---------------------------------------------------------------------------
 logmsg("== stool / environment feature counts ==")
 t8f <- list()
+# T8g - same partition for each compartment pair
+PAIRS_G <- list(c("gut", "dung"), c("gut", "soil"), c("dung", "soil"))
+t8g_draws <- list()
 for (ln in names(LAYERS_OQ2)) {
   M  <- LAYERS_OQ2[[ln]]
   kk <- key[match(rownames(M), key$sample_id), ]
@@ -177,6 +175,13 @@ for (ln in names(LAYERS_OQ2)) {
     reps <- do.call(rbind, lapply(seq_len(B_SUB), function(b) {
       S   <- comp_sets(M, kk, thr, draw_equal(kk, n_eq))
       env <- union(S$dung, S$soil)
+      t8g_draws[[length(t8g_draws) + 1]] <<- do.call(rbind, lapply(PAIRS_G, function(p) {
+        A <- S[[p[1]]]; Bs <- S[[p[2]]]
+        data.frame(layer = ln, threshold = thr, pair = paste(p, collapse = "-"),
+                   n_equal = n_eq, a_total = length(A), b_total = length(Bs),
+                   shared = length(intersect(A, Bs)),
+                   a_specific = length(setdiff(A, Bs)), b_specific = length(setdiff(Bs, A)))
+      }))
       data.frame(gut_total = length(S$gut), env_total = length(env),
                  shared = length(intersect(S$gut, env)),
                  gut_private = length(setdiff(S$gut, env)),
@@ -201,8 +206,28 @@ for (i in seq_len(nrow(t8f)))
          t8f$layer[i], t8f$threshold[i], t8f$gut_total[i], t8f$gut_private[i],
          t8f$env_total[i], t8f$env_private[i], t8f$pct_env_private[i], t8f$shared[i])
 
-# Figure 3
-save_fig(f12a_containment(t8b, t8f), "F12a_containment.png", width = 10.5, height = 4.6)
+t8g <- do.call(rbind, t8g_draws) %>%
+  group_by(layer, threshold, pair) %>%
+  summarise(n_equal = first(n_equal),
+            a_total_sd = sd(a_total), a_total = mean(a_total),
+            b_total_sd = sd(b_total), b_total = mean(b_total),
+            shared_sd = sd(shared), shared = mean(shared),
+            a_specific_sd = sd(a_specific), a_specific = mean(a_specific),
+            b_specific_sd = sd(b_specific), b_specific = mean(b_specific),
+            .groups = "drop") %>%
+  select(layer, threshold, pair, n_equal, a_total, a_total_sd, b_total, b_total_sd,
+         shared, shared_sd, a_specific, a_specific_sd, b_specific, b_specific_sd) %>%
+  as.data.frame()
+stopifnot(nrow(t8g) == length(LAYERS_OQ2) * length(THRESHOLDS) * 3,
+          all(is.finite(unlist(t8g[, sapply(t8g, is.numeric)]))),
+          all(abs(t8g$shared + t8g$a_specific - t8g$a_total) < 0.15),
+          all(abs(t8g$shared + t8g$b_specific - t8g$b_total) < 0.15))
+t8g[] <- lapply(t8g, function(x) if (is.numeric(x)) round(x, 1) else x)
+t8g$contamination_filter <- gating_col(GATING)
+save_tab(t8g, "T8g_pairwise_partition.tsv")
+
+# Figure 3: one panel per compartment pair
+save_fig(f12a_containment(t8b, t8g), "F12a_containment.png", width = 14, height = 5)
 
 stopifnot(abs(containment(1:5, 1:10) - 1) < 1e-12,
           abs(containment(1:10, 1:5) - 0.5) < 1e-12)

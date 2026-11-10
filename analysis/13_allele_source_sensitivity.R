@@ -1,13 +1,6 @@
 #!/usr/bin/env Rscript
 # ARG-variant containment: sensitivity to which sample supplied each catalog
-# representative.
-# Each catalog gene is a representative sequence assembled from one source sample
-# (the gene id prefix), and gut libraries, the deepest, supply most representatives of
-# genes detected in stool. Containment and its null (equal-effort subsampling over
-# 100 draws, exact hypergeometric null, gene-level exclusion list; as in
-# 04_nestedness.R) are recomputed on genes sourced from non-gut samples and on the
-# gut-sourced complement. Directions that are circular by construction under a
-# restriction are marked in `evaluable`.
+# representative
 # Output: T10.
 # Usage: Rscript analysis/13_allele_source_sensitivity.R   (from the repository root)
 
@@ -26,12 +19,11 @@ ann  <- load_arg_annotation()
 clin <- clinical_args(ann)
 
 # --- source compartment of every catalog gene ------------------------------
-# The gene id prefix is the sample its representative was assembled from. The full
-# key is needed to resolve them: it includes the 35 set-aside spatial soils.
+# The gene id prefix is the sample its representative was assembled from
 full  <- load_key(biological_only = FALSE, soil_primary_only = FALSE)
 scomp <- setNames(as.character(full$compartment), full$sample_id)
 
-GENE_GATING <- load_gating("control_arg_genes_blocklist.tsv", "gene-level")
+GENE_GATING <- load_gating("control_arg_genes_exclusion_list.tsv", "gene-level")
 gab <- read.delim(gzfile(file.path(FT_DIR, "arg_gene_abundance.tsv.gz")), stringsAsFactors = FALSE)
 gab <- gab[gab$sample_id %in% key$sample_id & !gab$gene_id %in% GENE_GATING$features, ]
 
@@ -105,9 +97,7 @@ for (lab in c("ARG allele (clinical)", "ARG allele (all)")) {
 }
 t10 <- do.call(rbind, res)
 
-# Circular cells: restricting to non-gut-sourced genes makes gut -> env vacuous (the
-# environment holds nearly all of them by construction); restricting to gut-sourced
-# genes makes every gut -> X direction vacuous (gut holds essentially all of them).
+# Circular cells
 t10$evaluable <- with(t10, ifelse(
   gene_subset == "non-gut-sourced" & direction == "gut -> env", "NO — circular (env holds nearly all non-gut-sourced genes)",
   ifelse(gene_subset == "gut-sourced only" & grepl("^gut ->", direction),

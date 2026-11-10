@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """KO x sample abundance table.
 
-Joins the eggNOG KO annotation (catalog_ko_ec.tsv.gz) to the CoverM abundance table
+Joins eggNOG KO annotation (catalog_ko_ec.tsv.gz) to the CoverM abundance table
 (gene_abundance_long.tsv.gz) and sums raw read counts per KEGG Orthology (bare K#####
-ids). A gene annotated with several KOs contributes its full count to each.
+ids). A gene annotated with multiple KOs contributes its full count to each.
 
 Inputs (under $SGMA2_BASE/assembly/genecat): eggnog/catalog_ko_ec.tsv.gz,
 gene_abundance_long.tsv.gz, coverm_samples.txt.

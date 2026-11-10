@@ -13,7 +13,7 @@
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
 # Concatenates the per-chunk AMRFinderPlus tables into a native table and a
-# harmonised hit table (arg_hits_long.tsv.gz) keyed on gene_id with a tool column.
+# harmonized hit table (arg_hits_long.tsv.gz) keyed on gene_id with a tool column.
 # Refuses to run until every chunk has a done marker.
 # Output: genecat/amr/amrfinder/catalog_amrfinder.tsv.gz, genecat/amr/arg_hits_long.tsv.gz,
 #   genecat/amr/amr_merge_report.txt

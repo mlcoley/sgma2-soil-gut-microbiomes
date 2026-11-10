@@ -17,7 +17,7 @@ theme_sgma <- theme_minimal(base_size = 11) +
   theme(panel.grid.minor = element_blank(), plot.title = element_text(face = "bold"))
 key <- load_key()
 
-# Negative-control filter, applied to every ARG-derived output here. Tables whose
+# Negative-control filter, applied to every ARG-derived output. Tables whose
 # `layer` column mixes KO and ARG rows are labelled per row (KO is not filtered).
 GATING <- load_gating()
 stamp_gating <- function(df) {
@@ -41,7 +41,7 @@ if (length(missing))
          length(missing), paste(missing, collapse = ", "))
 key_an <- key[!key$sample_id %in% missing, ]
 
-# T1a: per-compartment counts and read depth (total post-host reads, R1 + R2).
+# T1a: per-compartment counts and read depth (total post-host-filtr reads, R1 + R2).
 # n_key = biological samples in the key; n_analyzed = those in the feature tables.
 inv <- key %>% group_by(compartment) %>%
   summarise(n_key = n(), n_households_key = n_distinct(household), .groups = "drop") %>%
@@ -202,7 +202,7 @@ al <- rbind(alpha_of(ko, "KO"), alpha_of(arg, "ARG"))
 save_tab(stamp_gating(al), "T_alpha_diversity.tsv")
 
 # Kruskal-Wallis omnibus and BH-adjusted pairwise Wilcoxon per layer and metric,
-# with a Fligner-Killeen test of spread (and per-compartment MAD and IQR) beside it.
+# with a Fligner-Killeen test of spread (and per-compartment MAD and IQR)
 kw_lines <- c(); kw_stats <- list(); alpha_disp <- list()
 for (lay in unique(al$layer)) for (metric in c("richness", "shannon")) {
   d <- al[al$layer == lay, ]
@@ -243,7 +243,7 @@ save_tab(stamp_gating(alpha_disp), "T_alpha_dispersion.tsv")
 logmsg("alpha spread (Fligner-Killeen) differs by compartment in %d of %d layer x metric tests",
        sum(alpha_disp$p < 0.05), nrow(alpha_disp))
 
-# Figure 2: four panels (KO and ARG family; richness and Shannon) with the
+# Figure 2: four panels (KO and ARG family; richness and Shannon) with
 # Kruskal-Wallis omnibus read from `kw_stats`.
 LAY_TITLE <- setNames(layer_display(c("KO", "ARG"), wrap = FALSE), c("KO", "ARG"))
 alpha_panel <- function(lay, metric, ylab) {

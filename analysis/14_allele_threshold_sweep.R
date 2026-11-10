@@ -1,13 +1,5 @@
 #!/usr/bin/env Rscript
 # ARG-variant containment and household sharing against the catalog identity threshold.
-# The gene catalog was clustered at 95% identity, so two sequences at 94.9% identity
-# count as unshared. The ARG-bearing catalog genes were re-clustered at 90, 85 and
-# 80% identity (pipeline/11_feature-tables/arg_recluster_sweep.sbatch) and the
-# containment and household-sharing tests repeated; the 95% run is a control that
-# should reproduce the main results.
-# Limits: the sweep only goes downward (thresholds above 95% would need re-clustering
-# all ORFs and re-mapping every library), and summing counts across merged clusters
-# approximates, but does not reconstruct, a catalog built at the lower identity.
 # Input: feature_tables/arg_reclust/arg_id{95,90,85,80}_cluster.tsv (representative, member).
 # Outputs: T16a (merge summary), T16b (containment vs threshold), T16c (sharing vs
 # threshold).
@@ -16,7 +8,7 @@
 suppressPackageStartupMessages({ library(dplyr); library(tidyr); library(vegan) })
 source("analysis/00_load_features.R")
 
-set.seed(1)
+set.seed(78)
 N_PERM <- 999
 THR    <- 1
 B_SUB  <- 100     # equal-effort subsamples, as in 04_nestedness.R
@@ -33,7 +25,7 @@ if (!length(cf))
 
 key  <- load_key()
 clin <- clinical_args()
-GENE_GATING <- load_gating("control_arg_genes_blocklist.tsv", "gene-level")
+GENE_GATING <- load_gating("control_arg_genes_exclusion_list.tsv", "gene-level")
 gab <- read.delim(gzfile(file.path(FT_DIR, "arg_gene_abundance.tsv.gz")), stringsAsFactors = FALSE)
 gab <- gab[gab$sample_id %in% key$sample_id, ]
 gab <- gab[!gab$gene_id %in% GENE_GATING$features, ]
@@ -111,7 +103,7 @@ for (f in cf) {
   clin_feats <- unique(map[names(gene2sym)[gene2sym %in% clin]])
   clin_feats <- clin_feats[!is.na(clin_feats)]
 
-  # how much merging actually happened, overall and per ARG symbol
+  # how much merging happened overall and per ARG symbol
   n_in  <- length(unique(gab$gene_id)); n_out <- ncol(M)
   res_merge[[length(res_merge) + 1]] <- data.frame(
     identity_pct = idpct, n_genes_in = n_in, n_features_out = n_out,
@@ -128,8 +120,7 @@ for (f in cf) {
     # ---- containment, equal effort + exact hypergeometric null ------------
     reps <- lapply(seq_len(B_SUB), function(b) {
       S <- comp_sets(Mk, kk, draw_equal(kk, n_eq))
-      env <- union(S$dung, S$soil)
-      rbind(data.frame(direction = "C(gut -> env)",   t(contain_ses(S, S$gut, env))),
+      rbind(data.frame(direction = "C(gut -> soil)",  t(contain_ses(S, S$gut, S$soil))),
             data.frame(direction = "C(dung -> soil)", t(contain_ses(S, S$dung, S$soil))),
             data.frame(direction = "C(gut -> dung)",  t(contain_ses(S, S$gut, S$dung))))
     })

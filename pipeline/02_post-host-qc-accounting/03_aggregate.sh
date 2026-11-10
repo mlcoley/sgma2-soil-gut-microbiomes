@@ -13,7 +13,7 @@
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
 # Run once after the QC array finishes: MultiQC over fastp and FastQC outputs, then
-# the read-accounting table (raw, post-fastp, post-host counts).
+# the read-accounting table (raw, post-fastp, post-host counts)
 
 source "${SGMA2_CONFIG:-config/paths.sh}"
 

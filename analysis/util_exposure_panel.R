@@ -3,7 +3,6 @@
 # $SGMA2_HOUSEHOLD (META_DIR). Source after 00_load_features.R.
 #   exposure_panel()  one row per household, hh_id + 20 exposure variables
 #   diet_panel()      one row per household, 24-hour recall (child) and FFQ (household)
-# No coordinate is read.
 
 exposure_rd <- function(f) {
   p <- file.path(META_DIR, f)
@@ -18,7 +17,7 @@ EXPOSURE_PRIMARY <- c("cows_head", "total_livestock_head", "cows_in_compound",
 EXPOSURE_EXPLORATORY <- c("chickens_head", "child_eats_soil", "dung_to_floor",
                           "dung_to_walls", "dung_disposed", "soap_available",
                           "water_untreated", "latrine_no_slab", "hh_leftover_abx")
-# Added after the primary results were seen; own family, own correction.
+
 EXPOSURE_POSTHOC_SES <- c("ses_income_crops", "ses_income_ownbusiness",
                           "ses_land_over_1acre", "ses_kitchen_garden")
 
@@ -41,8 +40,7 @@ exposure_panel <- function() {
   num  <- function(x) suppressWarnings(as.numeric(x))
   # Structural zeros: animal_head_Chickens is NA for the 10 households that keep no
   # chickens (a head count of 0), and the anim_confined_dung* block is NA for the 14
-  # households whose cattle are not confined. dung_to_crops is constructed and screened
-  # but excluded from modelling as not validly measured (see 05_exposure.R).
+  # households whose cattle are not confined
   zero_if_na <- function(x) ifelse(is.na(x), 0, x)
 
   exp_df <- data.frame(hh_id = husb$hh_id, stringsAsFactors = FALSE) %>%
@@ -53,10 +51,6 @@ exposure_panel <- function() {
     left_join(husb %>% transmute(hh_id,
                 child_touch_feces = yn(child_touchlivestockfeces),
                 child_eats_soil   = yn(child_eatingsoil),
-                # Q4.7, "Which of your livestock are kept in stables or pens inside the
-                # compound?": cattle penned or stabled, not cattle presence (all 39
-                # households keep cattle). It is also the survey routing variable for
-                # the confinement module (25 asked / 14 skipped).
                 cows_in_compound  = as.integer(grepl("Cows", livestock_compound))),
               by = "hh_id") %>%
     left_join(conf %>% transmute(hh_id,
@@ -92,11 +86,6 @@ exposure_panel <- function() {
 ## ===========================================================================
 ## Diet frame
 ## ===========================================================================
-# These are dietary-composition covariates only. Food sourcing and raw/boiled
-# preparation are not recorded, and the dairy item is "Cheese, yogurt, kefir, milk or
-# other milk products" (sgma2_variableindex.csv), so they say nothing about
-# animal-to-human gene transfer.
-
 DIET_FFQ_FILE    <- "sgma2_hq_module6_hhffq.csv"      # household, habitual, ordinal
 DIET_RECALL_FILE <- "sgma2_hq_module7_24hrrecall.csv" # caregiver + child, single day, counts
 
@@ -105,8 +94,8 @@ DIET_FFQ_LEVELS <- c("Never" = 0L, "Rarely" = 1L, "Sometimes" = 2L, "Every day" 
 
 # FAO/WHO MDD-W food groups mapped onto the instrument's 28 items. The instrument
 # merges MDD-W groups 2 and 3 into one item ("Beans, peas, lentils, nuts or seeds"),
-# so 9 groups are achievable. `cowpea` (cowpea leaves) is assigned to dark green leafy
-# vegetables. Oils, sweets, soda, tea and coffee are not MDD-W groups and are excluded.
+# achieving 9 groups 
+# Oils, sweets, soda, tea and coffee are not MDD-W groups and are excluded.
 DIET_FOOD_GROUPS <- list(
   starchy_staples  = c("ugali", "tubersgourds_white"),
   pulses_nuts      = c("legumes"),
@@ -119,7 +108,7 @@ DIET_FOOD_GROUPS <- list(
   other_veg        = c("okra", "africaneggplant"),
   other_fruit      = c("banana", "orange"))
 
-# Animal-source set for the FFQ composite (`snails` fails the degeneracy screen).
+# Animal-source set for the FFQ composite 
 DIET_ASF_ITEMS <- c("organmeats", "meats", "fish", "eggs", "milk")
 
 # Recall column names are child_<item> except for organmeats.
@@ -166,12 +155,12 @@ diet_panel <- function(verify = TRUE) {
   out$ffq_asf_score <- rowSums(ffq_ord[, DIET_ASF_ITEMS, drop = FALSE])
   out$ffq_dds       <- dds(ffq_ord)
   out$ffq_dairy     <- ffq_ord$milk
-  # The dairy item has three realised levels (no household answers "Never"); it is
-  # dichotomised at "Sometimes or more often", fixed on the instrument's wording.
+  # The dairy item has three realised levels (no household answers "Never");
+  # dichotomised at "Sometimes or more often"
   out$ffq_dairy_regular <- as.integer(ffq_ord$milk >= 2)
 
   # 24-hour recall, child. Any intake yesterday is the primary form for the two
-  # items; the count is carried alongside.
+  # items
   stopifnot(identical(as.character(rec$hh_id), as.character(ffq$hh_id)))
   out$child_dairy_any   <- as.integer(rec_cnt$milk > 0)
   out$child_fish_any    <- as.integer(rec_cnt$fish > 0)

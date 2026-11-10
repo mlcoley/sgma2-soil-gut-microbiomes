@@ -2,13 +2,13 @@
 """Control detections at catalog-gene level, restricted to ARG-bearing genes.
 
 Same design as build_control_features.py, keyed on gene_id instead of ARG symbol:
-only negative and PCR blanks contribute to the candidate blocklist (genes at >= 5
-reads), which is not applied until copied to feature_tables/ without ".CANDIDATE" in its name.
+only negative and PCR blanks contribute to the proposed exclusion list (genes at >= 5
+reads), which is not applied until copied to feature_tables/ without ".unapplied" in its name.
 
 Inputs (under $SGMA2_BASE/assembly): coverm/<control>.tsv, control_manifest.tsv
 (sample, control_type), genecat/amr/arg_hits_long.tsv.gz.
 Outputs (genecat/controls/): control_arg_genes_detected.tsv,
-control_gene_blocklist_impact.tsv, control_arg_genes_blocklist.CANDIDATE.tsv,
+control_gene_exclusion_list_impact.tsv, control_arg_genes_exclusion_list.unapplied.tsv,
 control_gene_features_report.txt.
 """
 import gzip, os, sys
@@ -24,7 +24,7 @@ OUTD = f"{GEN}/controls"
 
 IMPACT_THRESHOLDS = [1, 2, 5, 10, 50]
 DEFAULT_MIN_READS = 5
-BLOCKLIST_TYPES = {"neg_blank", "pcr_blank"}
+EXCLUSION_LIST_TYPES = {"neg_blank", "pcr_blank"}
 
 
 def load_manifest():
@@ -97,24 +97,24 @@ def main():
     print(f"wrote {aud}", flush=True)
 
     # ---- impact across thresholds ------------------------------------------
-    blk = {s for s, t in present if t in BLOCKLIST_TYPES}
-    def blocked_at(thr):
+    blk = {s for s, t in present if t in EXCLUSION_LIST_TYPES}
+    def excluded_at(thr):
         return {gid for gid, per in detected.items()
                 if max((c for s, c in per.items() if s in blk), default=0) >= thr}
-    imp = f"{OUTD}/control_gene_blocklist_impact.tsv"
+    imp = f"{OUTD}/control_gene_exclusion_list_impact.tsv"
     with open(imp, "w") as out:
-        out.write("min_reads\tn_genes_blocked\tpct_of_arg_genes\tn_symbols_affected\n")
+        out.write("min_reads\tn_genes_excluded\tpct_of_arg_genes\tn_symbols_affected\n")
         for thr in IMPACT_THRESHOLDS:
-            g = blocked_at(thr)
+            g = excluded_at(thr)
             syms = {x for gid in g for x in g2a[gid]}
             out.write(f"{thr}\t{len(g)}\t{100.0 * len(g) / max(len(g2a), 1):.2f}\t{len(syms)}\n")
     print(f"wrote {imp}", flush=True)
 
-    # ---- CANDIDATE blocklist (deliberate rename required to activate) ------
-    cand = f"{OUTD}/control_arg_genes_blocklist.CANDIDATE.tsv"
+    # ---- unapplied exclusion list (deliberate rename required to activate) ------
+    cand = f"{OUTD}/control_arg_genes_exclusion_list.unapplied.tsv"
     with open(cand, "w") as out:
         out.write("gene_id\targ_symbol\tmax_count_in_negative_control\tn_negative_controls\n")
-        for gid in sorted(blocked_at(DEFAULT_MIN_READS)):
+        for gid in sorted(excluded_at(DEFAULT_MIN_READS)):
             per = {s: c for s, c in detected[gid].items() if s in blk}
             out.write(f"{gid}\t{','.join(sorted(g2a[gid]))}\t{max(per.values())}\t{len(per)}\n")
     print(f"wrote {cand}", flush=True)
@@ -124,15 +124,15 @@ def main():
         out.write("Control detections at catalog-gene level\n\n")
         out.write(f"controls mapped: {len(present)} of {len(controls)}\n")
         out.write(f"ARG-bearing catalog genes: {len(g2a)}\n")
-        out.write(f"negative controls used for the candidate blocklist: "
+        out.write(f"negative controls used for the proposed exclusion list: "
                   f"{','.join(sorted(blk))}\n")
-        out.write(f"candidate genes at >={DEFAULT_MIN_READS} reads: {len(blocked_at(DEFAULT_MIN_READS))}\n")
+        out.write(f"genes proposed for exclusion at >={DEFAULT_MIN_READS} reads: {len(excluded_at(DEFAULT_MIN_READS))}\n")
         for thr in IMPACT_THRESHOLDS:
-            out.write(f"  genes blocked at >={thr} read(s): {len(blocked_at(thr))}\n")
-        out.write("\nPositive duplicates and mock are NOT used for gating.\n")
-        out.write("\nTo apply gene-level gating, choose a threshold from\n")
-        out.write("control_gene_blocklist_impact.tsv and write the chosen gene_ids, one per\n")
-        out.write("line under a `gene_id` header, to feature_tables/control_arg_genes_blocklist.tsv\n")
+            out.write(f"  genes excluded at >={thr} read(s): {len(excluded_at(thr))}\n")
+        out.write("\nPositive duplicates and mock are NOT used for contamination filtering.\n")
+        out.write("\nTo apply the gene-level contamination filter, choose a threshold from\n")
+        out.write("control_gene_exclusion_list_impact.tsv and write the chosen gene_ids, one per\n")
+        out.write("line under a `gene_id` header, to feature_tables/control_arg_genes_exclusion_list.tsv\n")
     print(f"wrote {rep}", flush=True)
     print("done.", flush=True)
 

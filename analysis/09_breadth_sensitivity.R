@@ -1,15 +1,13 @@
 #!/usr/bin/env Rscript
-# Presence rule sensitivity: read count >= 1 versus covered-fraction (breadth) >= 0.5.
-# Neither rule is primary; both feature spaces are reported side by side. A breadth
-# filter removes proportionally more soil features, since soil maps to the gene
-# catalog at ~42% against ~95% for stool, so richness, containment and household
-# sharing are recomputed under each rule.
+# Sensitivity of presence definitions: read count >= 1 versus covered-fraction (breadth) >= 0.5.
 # Inputs (built by pipeline/11_feature-tables/rebuild_breadth_filtered.sbatch):
 #   feature_tables/ko_abundance_wide_cf50.tsv.gz
 #   feature_tables/arg_abundance_wide_cf50.tsv.gz
 #   feature_tables/arg_gene_abundance.tsv.gz (with a covered_fraction column)
 # Outputs: T18a (median richness by rule), T18b (containment SES and dung-soil
-# household-sharing z by rule).
+# household-sharing z by rule), T18c (T18b plus containment SES for child stool in
+# cattle dung and child stool in soil). T18c is computed inside the same equal-effort
+# draws as T18b, so no extra random draw is made and every T18b column is unchanged.
 # Usage: Rscript analysis/09_breadth_sensitivity.R   (from the repository root)
 
 suppressPackageStartupMessages({ library(dplyr); library(tidyr); library(vegan) })
@@ -32,7 +30,7 @@ key   <- load_key()
 clin  <- clinical_args()
 GAT   <- load_gating()
 
-## ---- the two feature spaces ----------------------------------------------
+## ---- two feature spaces ----------------------------------------------
 align <- function(M) { i <- intersect(rownames(M), key$sample_id); M[i, colSums(M[i, , drop = FALSE]) > 0, drop = FALSE] }
 KO_a  <- align(get_layer("ko_all", key)$M)
 KO_b  <- align(load_matrix(ko_cf,  "woltka"))
@@ -41,11 +39,11 @@ AR_b  <- align(drop_gated(load_matrix(arg_cf, "woltka"), GAT))
 logmsg("feature counts — KO: %d (count>=1) vs %d (breadth>=%.1f) | ARG: %d vs %d",
        ncol(KO_a), ncol(KO_b), CF, ncol(AR_a), ncol(AR_b))
 
-# ARG variant layer: breadth applied directly when the extraction carries it.
+# ARG variant layer
 gab <- read.delim(gzfile(file.path(FT_DIR, "arg_gene_abundance.tsv.gz")), stringsAsFactors = FALSE)
 has_cf <- "covered_fraction" %in% names(gab)
 logmsg("allele table carries covered_fraction: %s", has_cf)
-GG <- load_gating("control_arg_genes_blocklist.tsv", "gene-level")
+GG <- load_gating("control_arg_genes_exclusion_list.tsv", "gene-level")
 gab <- gab[gab$sample_id %in% key$sample_id & !gab$gene_id %in% GG$features, ]
 hits <- read.delim(gzfile(file.path(FT_DIR, "arg_hits_long.tsv.gz")), stringsAsFactors = FALSE)
 g2s  <- setNames(hits$arg_symbol, hits$gene_id)
@@ -63,7 +61,7 @@ SPACES <- list("KO (function)" = list(a = KO_a, b = KO_b),
                                        b = AR_b[, colnames(AR_b) %in% clin, drop = FALSE]))
 if (!is.null(AL_b)) SPACES[["ARG allele (clinical)"]] <- list(a = AL_a, b = AL_b)
 
-## ---- richness under each presence rule ----------------------------------
+## ---- richness under each presence def ----------------------------------
 logmsg("")
 logmsg("== richness under each presence rule ==")
 t18a <- list()
@@ -85,7 +83,7 @@ for (ln in unique(t18a$layer)) {
   logmsg("  %-21s %-16s gut %+6.1f%% | dung %+6.1f%% | soil %+6.1f%%", "", "-> change",
          100*(x$gut[2]/x$gut[1]-1), 100*(x$dung[2]/x$dung[1]-1), 100*(x$soil[2]/x$soil[1]-1))
 }
-# Is soil still the richest compartment for KO under the breadth rule?
+# Is soil still the richest compartment for KO under the breadth def
 ko <- t18a[t18a$layer == "KO (function)", ]
 ko_drop <- setNames(1 - as.numeric(ko[2, COMP_LEVELS]) / as.numeric(ko[1, COMP_LEVELS]), COMP_LEVELS)
 logmsg("")
@@ -119,22 +117,25 @@ for (ln in names(SPACES)) for (v in c("a","b")) {
   rule <- if (v=="a") "count >= 1" else sprintf("breadth >= %.1f", CF)
   neq <- min(table(kk$compartment))
   cs <- replicate(B_SUB, { S <- csets(M, kk, draw_equal(kk, neq)); env <- union(S$dung,S$soil)
-    c(ses(S,S$gut,env), ses(S,S$dung,S$soil)) })
+    c(ses(S,S$gut,env), ses(S,S$dung,S$soil), ses(S,S$gut,S$dung), ses(S,S$gut,S$soil)) })
   S <- jac(M > 0)
   sh <- sapply(list(c("dung","soil"),c("gut","soil"),c("gut","dung")), function(pr){
     H <- hhm(S,kk,pr[1],pr[2]); if(is.null(H)) c(z=NA,p=NA) else pz(H) })
   t18b[[length(t18b)+1]] <- data.frame(layer=ln, rule=rule, n_features=ncol(M),
     SES_gut_env=mean(cs[1,],na.rm=TRUE), SES_dung_soil=mean(cs[2,],na.rm=TRUE),
+    SES_gut_dung=mean(cs[3,],na.rm=TRUE), SES_gut_soil=mean(cs[4,],na.rm=TRUE),
     z_dung_soil=sh[1,1], p_dung_soil=sh[2,1], z_gut_soil=sh[1,2], z_gut_dung=sh[1,3])
 }
 t18b <- do.call(rbind, t18b)
 t18b[] <- lapply(t18b, function(x) if(is.numeric(x)) round(x,3) else x)
-save_tab(t18b, "T18b_containment_sharing_by_presence_rule.tsv")
+save_tab(t18b[, !names(t18b) %in% c("SES_gut_dung", "SES_gut_soil")],
+         "T18b_containment_sharing_by_presence_rule.tsv")
+save_tab(t18b, "T18c_containment_sharing_by_presence_rule_pairs.tsv")
 for (ln in unique(t18b$layer)) { x <- t18b[t18b$layer==ln,]
-  logmsg("  %-21s %-16s nfeat %5d | SES gut->env %+8.2f | SES dung->soil %+8.2f | dung-soil z %+5.2f (p %.3f)",
-         ln, x$rule[1], x$n_features[1], x$SES_gut_env[1], x$SES_dung_soil[1], x$z_dung_soil[1], x$p_dung_soil[1])
-  logmsg("  %-21s %-16s nfeat %5d | SES gut->env %+8.2f | SES dung->soil %+8.2f | dung-soil z %+5.2f (p %.3f)",
-         "", x$rule[2], x$n_features[2], x$SES_gut_env[2], x$SES_dung_soil[2], x$z_dung_soil[2], x$p_dung_soil[2]) }
+  for (r in 1:2)
+    logmsg("  %-21s %-16s nfeat %5d | SES dung->soil %+8.2f | gut->dung %+8.2f | gut->soil %+8.2f | dung-soil z %+5.2f (p %.3f)",
+           if (r == 1) ln else "", x$rule[r], x$n_features[r], x$SES_dung_soil[r],
+           x$SES_gut_dung[r], x$SES_gut_soil[r], x$z_dung_soil[r], x$p_dung_soil[r]) }
 
 writeLines(unlist(log_lines), file.path(LOG_DIR, "09_breadth_sensitivity.log"))
 cat("\nPresence-rule sensitivity complete.\n")

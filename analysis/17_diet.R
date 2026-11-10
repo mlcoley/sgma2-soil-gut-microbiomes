@@ -1,17 +1,7 @@
 #!/usr/bin/env Rscript
-# Dietary intake and the child's gut.
-# The two dietary instruments (24-hour recall, child side; food-frequency
-# questionnaire, household level) are tested against the stool responses: the three
-# scalars of 05_exposure.R plus stool KO composition. The recall and the FFQ are two
-# families, corrected separately by BH, each across its scalar and compositional rows.
-# Bray-Curtis is primary; Aitchison runs as a sensitivity outside the correction family.
-# On the compositional arm the statistic of interest is R2 against its empirical
-# permutation floor (the mean of the permutation distribution), not p. Stool only: these
-# are properties of the child's intake.
-# Food sourcing is not recorded, so these variables are dietary-composition covariates
-# only and say nothing about animal-to-human gene transfer. The dairy item is "cheese,
-# yogurt, kefir, milk or other milk products", not milk. At n = 39 the minimum
-# detectable correlation is |r| = 0.44, so a null excludes large effects only.
+# Dietary intake and child gut.
+# n = 39 the minimum detectable correlation is |r| = 0.44
+# null outcome excludes large effects only.
 # Outputs: T45a (recall, child), T45b (FFQ, household), T45c (feasibility screen),
 # T45d (compositional R2 against the floor).
 # Household metadata is read from $SGMA2_HOUSEHOLD.
@@ -37,7 +27,7 @@ diet <- diet_panel()
 logmsg("diet frame: %d households, verified against source files", nrow(diet))
 
 # ---------------------------------------------------------------------------
-# Feasibility screen (thresholds as in 05_exposure.R)
+# Feasibility screen
 # ---------------------------------------------------------------------------
 MIN_NONMISS  <- 30
 MIN_MINORITY <- 8
@@ -77,9 +67,7 @@ logmsg("== feasibility screen ==")
 for (i in seq_len(nrow(t45c)))
   logmsg("  [%s] %-18s %-11s %s", t45c$family[i], t45c$variable[i], t45c$type[i], t45c$reason[i])
 
-# ffq_dds fails the screen because every household reports 6-9 of 9 food groups
-# habitually (all 39 exceed the MDD-W minimum of 5), so there is no habitual
-# dietary-diversity contrast; the single-day recall gives the opposite picture.
+# there is no habitual dietary-diversity contrast in ffq
 logmsg("")
 logmsg("children reaching 5 food groups in the 24-hour recall: %d of 39", sum(diet$child_dds >= 5))
 
@@ -89,7 +77,7 @@ for (fam in names(usable))
   logmsg("family %s usable predictors: %s", fam, paste(usable[[fam]], collapse = ", "))
 
 # ---------------------------------------------------------------------------
-# Responses: the three scalars, stool only
+# Responses, three scalars, stool only
 # ---------------------------------------------------------------------------
 arg <- gate_layer(get_layer("arg", key), load_gating())
 ko  <- get_layer("ko_all", key)
@@ -111,7 +99,7 @@ resp <- data.frame(
   arg_richness  = rowSums(argg[, cl, drop = FALSE] > 0),
   ko_shannon    = vegan::diversity(kog, index = "shannon"),
   stringsAsFactors = FALSE)
-stopifnot(!anyDuplicated(resp$hh_id))     # one stool sample per household
+stopifnot(!anyDuplicated(resp$hh_id))    
 logmsg("")
 logmsg("responses: %d gut samples, one per household; normalization %s",
        nrow(resp), gf$method)
@@ -128,7 +116,7 @@ z <- function(v) (v - mean(v, na.rm = TRUE)) / sd(v, na.rm = TRUE)
 scalar_test <- function(xv, rv) {
   d <- data.frame(y = z(resp[[rv]]), x = diet[[xv]][match(resp$hh_id, diet$hh_id)])
   d <- d[complete.cases(d), ]
-  d$x <- z(d$x)                            # SD units for continuous AND binary
+  d$x <- z(d$x)                           
   fit <- lm(y ~ x, data = d)
   ci <- confint(fit)["x", ]
   data.frame(response = rv, variable = xv, n = nrow(d),
@@ -137,7 +125,7 @@ scalar_test <- function(xv, rv) {
 }
 
 # ---------------------------------------------------------------------------
-# Compositional arm (closed-form R2 as in 15_exposure_multivariate.R)
+# Compositional arm
 # ---------------------------------------------------------------------------
 clr_m <- function(M) { L <- log(M + 1); sweep(L, 1, rowMeans(L), "-") }
 gower <- function(d) {
@@ -150,8 +138,7 @@ r2_1df <- function(G, x, trG) {
   if (ss <= 0) return(NA_real_)
   as.numeric(crossprod(xc, G %*% xc)) / (ss * trG)
 }
-# Stool is one sample per household, so permutation is free; the empirical floor is
-# checked against the closed form 1/(n-1) below.
+
 permanova_1df <- function(G, trG, x, nperm = N_PERM) {
   obs  <- r2_1df(G, x, trG)
   perm <- vapply(seq_len(nperm), function(i) r2_1df(G, x[sample.int(length(x))], trG),
@@ -163,7 +150,7 @@ permanova_1df <- function(G, trG, x, nperm = N_PERM) {
 
 comp_test <- function(xv, dname) {
   M <- kog
-  # the predictor is aligned to resp$hh_id, so M's row order must equal resp$sample_id
+  # predictor is aligned to resp$hh_id, so M's row order must equal resp$sample_id
   stopifnot(identical(rownames(M), resp$sample_id))
   x <- diet[[xv]][match(resp$hh_id, diet$hh_id)]
   keep <- !is.na(x)
@@ -171,7 +158,7 @@ comp_test <- function(xv, dname) {
   d <- if (dname == "Bray-Curtis") vegdist(tss(Mk), method = "bray") else dist(clr_m(Mk))
   G <- gower(d); trG <- sum(diag(G))
   r <- permanova_1df(G, trG, x[keep])
-  # dispersion companion; a binary predictor is its own grouping, others are median-split
+  #dispersion
   xk <- x[keep]
   grp <- if (all(xk %in% c(0, 1))) factor(xk) else factor(xk > median(xk, na.rm = TRUE))
   disp_p <- if (nlevels(grp) == 2)
@@ -197,8 +184,7 @@ run_family <- function(fam) {
                       "R2","R2_floor","R2_excess","dispersion_p","p")],
                cp[, c("arm","response","variable","n","beta","ci_lo","ci_hi",
                       "R2","R2_floor","R2_excess","dispersion_p","p")])
-  # BH within family, across both arms (every row tests whether the diet variable is
-  # associated with the child's gut)
+  # BH within family, across both arms
   out$q_BH <- p.adjust(out$p, method = "BH")
   out$family <- fam
   out[order(out$q_BH, out$p), ]
@@ -221,7 +207,7 @@ for (fam in c("A", "B")) {
 }
 
 # ---------------------------------------------------------------------------
-# T45d: the compositional arm against its floor, plus Aitchison
+# T45d: compositional
 # ---------------------------------------------------------------------------
 all_usable <- unlist(usable, use.names = FALSE)
 t45d <- do.call(rbind, lapply(c("Bray-Curtis", "Aitchison"), function(dn)
@@ -229,7 +215,6 @@ t45d <- do.call(rbind, lapply(c("Bray-Curtis", "Aitchison"), function(dn)
 t45d$R2_closed_form_check <- 1 / (nrow(resp) - 1)
 save_tab(t45d, "T45d_diet_compositional_vs_floor.tsv")
 
-# Stool is one sample per household, so the empirical floor must recover 1/(n-1).
 cf   <- 1 / (nrow(resp) - 1)
 worst <- max(abs(t45d$R2_floor - cf))
 logmsg("")

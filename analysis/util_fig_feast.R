@@ -1,8 +1,6 @@
 #!/usr/bin/env Rscript
 # Figure S6: own-household minus decoy-household FEAST source proportion against its
-# sign-flip null. The null is drawn as a histogram because a sign-flip null over ~39
-# households is discrete and need not be symmetric. Computes no statistic; draws from
-# T42b and T42d. Reuses the theme of util_fig_pairs.R.
+# sign-flip null. Reuses the theme of util_fig_pairs.R.
 
 suppressPackageStartupMessages({ library(ggplot2); library(dplyr) })
 source("analysis/util_fig_pairs.R")
@@ -10,7 +8,7 @@ source("analysis/util_fig_pairs.R")
 r5_figure_contrast <- function(t42b, t42d) {
   ord <- intersect(c("gut to soil", "gut to dung", "dung to soil", "soil to soil"),
                    unique(t42b$stratum))
-  # the control note goes on a second line: a one-line strip is clipped silently
+
   R5_STRIP <- c("gut to soil"   = "child stool to soil",
                 "gut to dung"   = "child stool to cattle dung",
                 "dung to soil"  = "cattle dung to soil\n(operative control)",

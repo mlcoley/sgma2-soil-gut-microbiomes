@@ -12,7 +12,7 @@
 #SBATCH -A YOUR_ACCOUNT
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mail-user=YOUR_EMAIL
-# Pools all per-sample gene nucleotide sequences (.ffn) and builds the non-redundant
+# Pools all per-sample gene nucleotide sequences (.ffn) and builds a non-redundant
 # gene catalog with mmseqs easy-linclust: 95% nucleotide identity, 90% coverage of
 # the shorter sequence (--cov-mode 1). Version: mmseqs2 18.8cc5c.
 # Output: assembly/genecat/ catalog_rep_seq.fasta, catalog_cluster.tsv,

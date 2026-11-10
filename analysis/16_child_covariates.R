@@ -1,20 +1,6 @@
 #!/usr/bin/env Rscript
-# Child covariates (age, sex, anthropometry, stool consistency) against the stool
+# Child covariates (age, sex, anthropometry, stool consistency) associations with stool
 # responses.
-# 05_exposure.R tests household exposures; this tests the child's own
-# characteristics. Gut only: these are properties of the child, so crossing them with
-# dung and soil would add tests that carry no hypothesis. Same feasibility screen as
-# 05_exposure.R (binary: minority class >= 8 households; continuous: >= 5 distinct
-# values; both: >= 30 non-missing); one covariate at a time against clinical ARG
-# abundance, clinical ARG richness and KO Shannon diversity (standardized), BH within
-# the family.
-# Child age is the age in whole months at stool collection, from the date of birth on the
-# screening form. The date of birth in the household-demographics module disagrees for
-# some households (some by exactly one year, consistent with a transcription error), and
-# neither source can be shown correct from the data, so the identical family is re-run
-# with that source (T39c). The deposited metadata carries both ages (child_age_months in
-# sgma2_screening.csv and in the demographics table), not dates of birth. The disagreement
-# is counted in the log.
 # Outputs: T39a (screen), T39b (associations), T39c (age-source sensitivity).
 # Household metadata is read from $SGMA2_HOUSEHOLD.
 # Usage: Rscript analysis/16_child_covariates.R   (from the repository root)
@@ -37,7 +23,7 @@ key <- load_key()
 logmsg("cohort: %d samples across %d households", nrow(key), length(unique(key$household)))
 
 # ===========================================================================
-# Responses: as in 05_exposure.R, restricted to stool
+# Responses. restricted to stool
 # ===========================================================================
 arg  <- gate_layer(get_layer("arg", key), GATING)
 ko   <- get_layer("ko_all", key)
@@ -71,7 +57,7 @@ anth  <- rd("sgma2_childanth.csv")
 scr   <- rd("sgma2_screening.csv")
 dem   <- rd("sgma2_hq_module1_hhdem_agestructure.csv")
 
-# --- age-source reconciliation, recorded before either version is used ------
+# --- age-source reconciliation ------
 age_scr <- setNames(scr$child_age_months, scr$hh_id)
 age_dem <- setNames(dem$child_age_months, dem$hh_id)
 stopifnot(!any(is.na(age_scr)), !any(is.na(age_dem)), !anyNA(stool$hh_id))
@@ -91,7 +77,7 @@ logmsg("  ... consistent with a one-year transcription error (12 months apart): 
 logmsg("Screening is primary (the form collected DOB for eligibility); the demographics-module")
 logmsg("version runs as a full sensitivity (T39c).")
 
-# --- the covariate panel -----------------------------------------------------
+# --- covariate panel -----------------------------------------------------
 cov_df <- data.frame(hh_id = hh_all, stringsAsFactors = FALSE)
 cov_df$child_age_months <- age_scr[match(cov_df$hh_id, hh_all)]
 cov_df$bsc_sample  <- stool$bsc_sample[match(cov_df$hh_id, stool$hh_id)]
@@ -114,7 +100,7 @@ for (v in COVARS)
   if (all(is.na(cov_df[[v]]))) stop("covariate is entirely NA after join: ", v)
 logmsg("covariate join resolved for all %d gut households", nrow(resp))
 
-# Weight and height at 20-59 months partly restate age.
+# Weight and height at 20-59 months partly recapitulate age.
 logmsg("")
 logmsg("== anthropometry vs age ==")
 for (v in c("child_weight_kg", "child_height_cm"))
@@ -125,7 +111,7 @@ logmsg("bsc_sample vs bsc_typical: Spearman %+.3f, identical in %d of %d househo
        sum(cov_df$bsc_sample == cov_df$bsc_typical), nrow(cov_df))
 
 # ===========================================================================
-# Feasibility screen (thresholds as in 05_exposure.R)
+# Feasibility screen
 # ===========================================================================
 MIN_NONMISS  <- 30
 MIN_MINORITY <- 8
@@ -175,7 +161,7 @@ logmsg("n = %d stool households: smallest detectable |r| = %.2f (r^2 = %.0f%% of
        n_hh, MDE_R, 100 * MDE_R^2, MDE_D)
 
 # ===========================================================================
-# The tests
+# Tests
 # ===========================================================================
 RESPONSES <- c(arg_abundance = "clinical ARG abundance (per genome)",
                arg_richness  = "clinical ARG richness",
@@ -188,7 +174,7 @@ fit_one <- function(rsp, xv, cov_source = cov_df, label = "primary") {
   d <- d[!is.na(d$x) & !is.na(d$y), ]
   if (nrow(d) < MIN_NONMISS) return(NULL)
   d$y <- as.numeric(scale(d$y))
-  # binary stays 0/1 (group contrast in SD units); continuous is standardized
+  # binary stays 0/1; continuous is standardized
   if (length(unique(d$x)) > 2) d$x <- as.numeric(scale(d$x))
   m  <- lm(y ~ x, data = d)
   cf <- summary(m)$coefficients
@@ -224,7 +210,7 @@ nsig <- sum(t39b$q_BH < 0.05, na.rm = TRUE)
 logmsg("reaching BH-adjusted p < 0.05: %d of %d", nsig, nrow(t39b))
 
 # ===========================================================================
-# Date-of-birth source sensitivity: the identical family under the other source
+# DOB source sensitivity
 # ===========================================================================
 cov_alt <- cov_df
 cov_alt$child_age_months <- age_dem[match(cov_alt$hh_id, hh_all)]

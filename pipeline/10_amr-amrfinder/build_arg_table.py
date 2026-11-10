@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ARG x sample abundance table.
 
-Joins the harmonised AMR hit table (arg_hits_long.tsv.gz) to the CoverM abundance
+Joins the harmonized AMR hit table (arg_hits_long.tsv.gz) to the CoverM abundance
 table (gene_abundance_long.tsv.gz) and sums raw read counts per ARG gene symbol. A gene
 with several ARG hits contributes its full count to each (tool, arg_symbol). No scope
 filter is applied; arg_annotation.tsv carries element type, scope, drug class and
